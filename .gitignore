@@ -1,0 +1,16 @@
+# Misc
+/out/
+/configs/
+tokens.json
+
+# eclipse files
+.classpath
+.project
+.settings/
+/bin/
+
+# intellij files
+/.idea/
+*.iml
+*.ipr
+*.iws
