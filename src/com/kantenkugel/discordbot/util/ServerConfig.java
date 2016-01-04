@@ -47,7 +47,8 @@ public class ServerConfig {
     public ServerConfig(JDA api, Guild guild) {
         this.api = api;
         this.guild = guild;
-        load();
+        if(guild != null)
+            load();
     }
 
     public String getPrefix() {

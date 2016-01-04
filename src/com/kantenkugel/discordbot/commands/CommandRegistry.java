@@ -10,6 +10,7 @@ import net.dv8tion.jda.Permission;
 import net.dv8tion.jda.entities.Guild;
 import net.dv8tion.jda.entities.Message;
 import net.dv8tion.jda.entities.Role;
+import net.dv8tion.jda.entities.User;
 import net.dv8tion.jda.events.InviteReceivedEvent;
 import net.dv8tion.jda.events.ReadyEvent;
 import net.dv8tion.jda.events.guild.GuildJoinEvent;
@@ -79,7 +80,7 @@ public class CommandRegistry extends ListenerAdapter {
                             MessageUtil.reply(m, "This will make the bot leave this server!" +
                                     "\nTo leave, call " + cfg.getPrefix() + args[0] + " " + args[1] + " YES");
                         } else if(args[2].equals("YES")) {
-                            m.getGuild().leave();
+                            m.getGuild().getManager().leaveOrDelete();
                         }
                         break;
                     case "admins":
@@ -246,27 +247,69 @@ public class CommandRegistry extends ListenerAdapter {
             String[] args = MessageUtil.getArgs(m, cfg);
             if(args.length == 1) {
                 MessageHistory history = new MessageHistory(m.getJDA(), m.getTextChannel());
-                List<Message> messages = history.retrieve();
-                while(messages != null) {
-                    messages.forEach(Message::deleteMessage);
-                    messages = history.retrieve();
-                }
+                new Thread(new ClearRunner(history, null)).start();
             } else if(args.length == 2) {
                 OffsetDateTime clearTo = MiscUtil.getOffsettedTime(args[1]);
                 if(clearTo != null) {
                     MessageHistory history = new MessageHistory(m.getJDA(), m.getTextChannel());
-                    List<Message> messages = history.retrieve();
-                    while(messages != null) {
-                        for(Message message : messages) {
-                            if(message.getTime().isAfter(clearTo)) {
-                                message.deleteMessage();
-                            } else {
-                                return;
-                            }
-                        }
-                        messages = history.retrieve();
-                    }
+                    new Thread(new ClearRunner(history, clearTo)).start();
                 }
+            }
+        }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
+        commands.put("kick", new CommandWrapper((e, cfg) -> {
+            if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.KICK_MEMBERS)) {
+                MessageUtil.reply(e, "I do not have permissions!");
+                return;
+            }
+            if(e.getMessage().getMentionedUsers().size() == 0) {
+                MessageUtil.reply(e, "Please add the user(s) to kick via mentions");
+                return;
+            }
+            String notKicked = "";
+            for(User user : e.getMessage().getMentionedUsers()) {
+                if(cfg.isMod(user)) {
+                    notKicked += user.getUsername() + ", ";
+                } else {
+                    e.getGuild().kick(user);
+                }
+            }
+            MessageUtil.reply(e, notKicked.isEmpty() ? "User(s) kicked" : "Following user(s) could not be kicked (mod): " + notKicked.substring(0, notKicked.length() - 2));
+        }).acceptPrivate(false).acceptPriv(Command.Priv.MOD));
+        commands.put("ban", new CommandWrapper((e, cfg) -> {
+            if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.BAN_MEMBERS)) {
+                MessageUtil.reply(e, "I do not have permissions!");
+                return;
+            }
+            if(e.getMessage().getMentionedUsers().size() == 0) {
+                MessageUtil.reply(e, "Please add the user(s) to ban via mentions");
+                return;
+            }
+            String notBanned = "";
+            for(User user : e.getMessage().getMentionedUsers()) {
+                if(cfg.isAdmin(user)) {
+                    notBanned += user.getUsername() + ", ";
+                } else {
+                    e.getGuild().ban(user, 0);
+                }
+            }
+            MessageUtil.reply(e, notBanned.isEmpty() ? "User(s) banned" : "Following user(s) could not be banned (admin): " + notBanned.substring(0, notBanned.length() - 2));
+        }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
+        commands.put("unban", new CommandWrapper((e, cfg) -> {
+            if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.BAN_MEMBERS)) {
+                MessageUtil.reply(e, "I do not have permissions!");
+                return;
+            }
+        }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
+        commands.put("bans", new CommandWrapper((e, cfg) -> {
+            if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.BAN_MEMBERS)) {
+                MessageUtil.reply(e, "I do not have permissions!");
+                return;
+            }
+            Optional<String> bans = e.getGuild().getBans().stream().map(u -> u.getUsername() + '(' + u.getId() + ')').reduce((s1, s2) -> s1 + ", " + s2);
+            if(bans.isPresent()) {
+                MessageUtil.reply(e, "Banned users: " + bans.get());
+            } else {
+                MessageUtil.reply(e, "No Bans found for this Guild");
             }
         }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
         commands.put("eval", new CommandWrapper((m, cfg) -> {
@@ -293,8 +336,18 @@ public class CommandRegistry extends ListenerAdapter {
         ServerConfig cfg;
         if(!event.isPrivate()) {
             cfg = serverConfigs.get(event.getTextChannel().getGuild().getId());
+            if(event.getMessage().getContent().equals("-kbreset") && cfg.isOwner(event.getAuthor())) {
+                cfg.setPrefix(ServerConfig.DEFAULT_PREFIX);
+                MessageUtil.reply(event, "Prefix was reset to default (" + ServerConfig.DEFAULT_PREFIX + ")");
+                return;
+            }
+            if(event.getMessage().getMentionedUsers().contains(event.getJDA().getSelfInfo())) {
+                System.out.printf("\t@[%s][%s] %s:%s\n", event.getGuild().getName(), event.getTextChannel().getName(),
+                        event.getAuthor().getUsername(), event.getMessage().getContent());
+            }
         } else {
             cfg = new ServerConfig.PMConfig();
+            System.out.println("\tP[" + event.getAuthor().getUsername() + "]: " + event.getMessage().getContent());
         }
 
         if(event.getMessage().getContent().startsWith(cfg.getPrefix())) {
@@ -323,7 +376,7 @@ public class CommandRegistry extends ListenerAdapter {
 
     @Override
     public void onReady(ReadyEvent event) {
-        event.getJDA().getAccountManager().setGame("JDA").update();
+        event.getJDA().getAccountManager().setGame("JDA");
         for(Guild guild : event.getJDA().getGuilds()) {
             serverConfigs.put(guild.getId(), new ServerConfig(event.getJDA(), guild));
         }
@@ -341,10 +394,12 @@ public class CommandRegistry extends ListenerAdapter {
 
     @Override
     public void onInviteReceived(InviteReceivedEvent event) {
-        if(event.getMessage().getMentionedUsers().contains(event.getJDA().getSelfInfo())
+        if((event.getMessage().isPrivate() || event.getMessage().getMentionedUsers().contains(event.getJDA().getSelfInfo()))
                 && event.getJDA().getGuildById(event.getInvite().getGuildId()) == null) {
             InviteUtil.join(event.getInvite(), event.getJDA());
-            String text = "Joined Guild! Server owner should probably configure me via the config command\nDefault prefix is: " + ServerConfig.DEFAULT_PREFIX;
+            String text = "Joined Guild! Server owner should probably configure me via the config command\nDefault prefix is: "
+                    + ServerConfig.DEFAULT_PREFIX + "\nThe owner can reset it by calling -kbreset";
+            System.out.println("Joining Guild " + event.getInvite().getGuildName() + " via invite of " + event.getAuthor());
             if(event.getMessage().isPrivate()) {
                 event.getJDA().getPrivateChannelById(event.getMessage().getChannelId()).sendMessage(text);
             } else {
@@ -353,7 +408,37 @@ public class CommandRegistry extends ListenerAdapter {
         }
     }
 
-    public static Map<String, ServerConfig> getServerConfigs() {
-        return serverConfigs;
+    private static class ClearRunner implements Runnable {
+        private final MessageHistory history;
+        private final OffsetDateTime time;
+
+        public ClearRunner(MessageHistory histo, OffsetDateTime time) {
+            this.history = histo;
+            this.time = time;
+        }
+
+        @Override
+        public void run() {
+            if(time == null) {
+                List<Message> messages = history.retrieve();
+                while(messages != null) {
+                    messages.forEach(Message::deleteMessage);
+                    messages = history.retrieve();
+                }
+            } else {
+                List<Message> messages = history.retrieve();
+                while(messages != null) {
+                    for(Message message : messages) {
+                        if(message.getTime().isAfter(time)) {
+                            message.deleteMessage();
+                        } else {
+                            return;
+                        }
+                    }
+                    messages = history.retrieve();
+                }
+            }
+        }
     }
+
 }
