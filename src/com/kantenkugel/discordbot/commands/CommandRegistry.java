@@ -172,16 +172,11 @@ public class CommandRegistry extends ListenerAdapter {
                 if(commands.containsKey(args[1].toLowerCase())) {
                     MessageUtil.reply(m, "Command " + args[1] + " is reserved");
                 } else {
-                    String channelId = m.getTextChannel().getId();
-                    Map<String, Map<String, String>> textCommands = cfg.getTextCommands();
-                    if(!textCommands.containsKey(channelId)) {
-                        textCommands.put(channelId, new HashMap<>());
-                    }
-                    Map<String, String> cmds = textCommands.get(channelId);
-                    if(cmds.containsKey(args[1].toLowerCase())) {
+                    Map<String, String> textCommands = cfg.getTextCommands();
+                    if(textCommands.containsKey(args[1].toLowerCase())) {
                         MessageUtil.reply(m, "Command " + args[1] + " is already defined, edit it with !editcom");
                     } else {
-                        cmds.put(args[1].toLowerCase(), args[2]);
+                        textCommands.put(args[1].toLowerCase(), args[2]);
                         cfg.save();
                         MessageUtil.reply(m, "Command " + args[1].toLowerCase() + " was created!");
                     }
@@ -191,15 +186,12 @@ public class CommandRegistry extends ListenerAdapter {
         commands.put("editcom", new CommandWrapper((m, cfg) -> {
             String[] args = MessageUtil.getArgs(m, cfg, 3);
             if(args.length == 3) {
-                String channelId = m.getTextChannel().getId();
-                Map<String, Map<String, String>> textCommands = cfg.getTextCommands();
-                if(textCommands.containsKey(channelId)) {
-                    if(textCommands.get(channelId).containsKey(args[1].toLowerCase())) {
-                        textCommands.get(channelId).put(args[1].toLowerCase(), args[2]);
-                        cfg.save();
-                        MessageUtil.reply(m, "Command " + args[1].toLowerCase() + " was created!");
-                        return;
-                    }
+                Map<String, String> textCommands = cfg.getTextCommands();
+                if(textCommands.containsKey(args[1].toLowerCase())) {
+                    textCommands.put(args[1].toLowerCase(), args[2]);
+                    cfg.save();
+                    MessageUtil.reply(m, "Command " + args[1].toLowerCase() + " was created!");
+                    return;
                 }
                 MessageUtil.reply(m, "Command " + args[1] + " is not defined");
             }
@@ -207,15 +199,12 @@ public class CommandRegistry extends ListenerAdapter {
         commands.put("delcom", new CommandWrapper((m, cfg) -> {
             String[] args = MessageUtil.getArgs(m, cfg, 2);
             if(args.length == 2) {
-                String channelId = m.getTextChannel().getId();
-                Map<String, Map<String, String>> textCommands = cfg.getTextCommands();
-                if(textCommands.containsKey(channelId)) {
-                    if(textCommands.get(channelId).containsKey(args[1].toLowerCase())) {
-                        textCommands.get(channelId).remove(args[1].toLowerCase());
-                        cfg.save();
-                        MessageUtil.reply(m, "Command " + args[1].toLowerCase() + " was removed!");
-                        return;
-                    }
+                Map<String, String> textCommands = cfg.getTextCommands();
+                if(textCommands.containsKey(args[1].toLowerCase())) {
+                    textCommands.remove(args[1].toLowerCase());
+                    cfg.save();
+                    MessageUtil.reply(m, "Command " + args[1].toLowerCase() + " was removed!");
+                    return;
                 }
                 MessageUtil.reply(m, "Command " + args[1] + " is not defined");
             }
@@ -227,17 +216,18 @@ public class CommandRegistry extends ListenerAdapter {
             } else {
                 MessageUtil.reply(m, "No Commands available to you at this time in this chat");
             }
+            if(m.isPrivate()) {
+                MessageUtil.reply(m, "In Guilds, my commands may be prefixed differently (standard prefix in guilds is -kb instead of !)");
+            }
         }));
         commands.put("texts", new CommandWrapper((m, cfg) -> {
-            if(cfg.getTextCommands().containsKey(m.getTextChannel().getId())) {
-                Optional<String> reduce = cfg.getTextCommands().get(m.getTextChannel().getId()).keySet().stream()
-                        .map(key -> cfg.getPrefix() + key).sorted().reduce((s1, s2) -> s1 + ", " + s2);
-                if(reduce.isPresent()) {
-                    MessageUtil.reply(m, "Defined Text-Commands: " + reduce.get());
-                    return;
-                }
+            Optional<String> reduce = cfg.getTextCommands().keySet().stream()
+                    .map(key -> cfg.getPrefix() + key).sorted().reduce((s1, s2) -> s1 + ", " + s2);
+            if(reduce.isPresent()) {
+                MessageUtil.reply(m, "Defined Text-Commands: " + reduce.get());
+            } else {
+                MessageUtil.reply(m, "No Text-Commands defined for this guild");
             }
-            MessageUtil.reply(m, "No Text-Commands defined for this channel");
         }).acceptCustom((m, cfg) -> !m.isPrivate() && (!cfg.isRestrictTexts() || cfg.isMod(m.getAuthor()))));
         commands.put("clear", new CommandWrapper((m, cfg) -> {
             if(!m.getTextChannel().checkPermission(m.getJDA().getSelfInfo(), Permission.MESSAGE_MANAGE)) {
@@ -267,7 +257,7 @@ public class CommandRegistry extends ListenerAdapter {
             }
             String notKicked = "";
             for(User user : e.getMessage().getMentionedUsers()) {
-                if(cfg.isMod(user)) {
+                if(cfg.isMod(user) || user == e.getJDA().getSelfInfo()) {
                     notKicked += user.getUsername() + ", ";
                 } else {
                     e.getGuild().kick(user);
@@ -286,7 +276,7 @@ public class CommandRegistry extends ListenerAdapter {
             }
             String notBanned = "";
             for(User user : e.getMessage().getMentionedUsers()) {
-                if(cfg.isAdmin(user)) {
+                if(cfg.isAdmin(user) || user == e.getJDA().getSelfInfo()) {
                     notBanned += user.getUsername() + ", ";
                 } else {
                     e.getGuild().ban(user, 0);
@@ -299,6 +289,8 @@ public class CommandRegistry extends ListenerAdapter {
                 MessageUtil.reply(e, "I do not have permissions!");
                 return;
             }
+            //TODO
+            MessageUtil.reply(e, "Not fully implemented!");
         }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
         commands.put("bans", new CommandWrapper((e, cfg) -> {
             if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.BAN_MEMBERS)) {
@@ -315,6 +307,7 @@ public class CommandRegistry extends ListenerAdapter {
         commands.put("eval", new CommandWrapper((m, cfg) -> {
             Message msg;
             engine.put("event", m);
+            engine.put("config", cfg);
             try {
                 Object out = engine.eval("(function(){"
                         + m.getMessage().getContent().substring(cfg.getPrefix().length() + 5)
@@ -362,13 +355,9 @@ public class CommandRegistry extends ListenerAdapter {
                     //texts only available to mods
                     return;
                 }
-                String channelId = event.getTextChannel().getId();
-                Map<String, Map<String, String>> textCommands = cfg.getTextCommands();
-                if(textCommands.containsKey(channelId)) {
-                    Map<String, String> groupcmds = textCommands.get(channelId);
-                    if(groupcmds.containsKey(args[0])) {
-                        MessageUtil.reply(event, groupcmds.get(args[0]));
-                    }
+                Map<String, String> textCommands = cfg.getTextCommands();
+                if(textCommands.containsKey(args[0])) {
+                    MessageUtil.reply(event, textCommands.get(args[0]));
                 }
             }
         }

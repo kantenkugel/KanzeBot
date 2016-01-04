@@ -27,20 +27,23 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 public class ServerConfig {
     public static final String DEFAULT_PREFIX = "-kb";
     private static final Path config_folder = Paths.get("configs");
-    private static final int CURR_VERSION = 1;
+    private static final int CURR_VERSION = 2;
 
     private final JDA api;
     private final Guild guild;
     private final Set<User> admins = new HashSet<>();
-    private final Set<Role> adminRoles = new HashSet<>();
+    private final Set<String> adminRoles = new HashSet<>();
     private final Set<User> mods = new HashSet<>();
-    private final Set<Role> modRoles = new HashSet<>();
-    private final Map<String, Map<String, String>> textCommands = new HashMap<>();
+    private final Set<String> modRoles = new HashSet<>();
+    private final Map<String, String> textCommands = new HashMap<>();
     private String prefix = DEFAULT_PREFIX;
     private boolean restrictTexts = false;
 
@@ -74,22 +77,20 @@ public class ServerConfig {
     }
 
     public boolean isAdmin(User u) {
-        if(isOwner(u) || admins.contains(u)) {
+        if(isOwner(u) || admins.contains(u) || adminRoles.contains("@everyone")) {
             return true;
         }
-        List<Role> rolesForUser = guild.getRolesForUser(u);
-        return adminRoles.stream().anyMatch(rolesForUser::contains);
+        return guild.getRolesForUser(u).stream().map(Role::getName).anyMatch(adminRoles::contains);
     }
 
     public boolean isMod(User u) {
-        if(isAdmin(u) || mods.contains(u)) {
+        if(isAdmin(u) || mods.contains(u) || modRoles.contains("@everyone")) {
             return true;
         }
-        List<Role> rolesForUser = guild.getRolesForUser(u);
-        return modRoles.stream().anyMatch(rolesForUser::contains);
+        return guild.getRolesForUser(u).stream().map(Role::getName).anyMatch(modRoles::contains);
     }
 
-    public Map<String, Map<String, String>> getTextCommands() {
+    public Map<String, String> getTextCommands() {
         return textCommands;
     }
 
@@ -104,12 +105,12 @@ public class ServerConfig {
     }
 
     public void addAdminRole(Role role) {
-        adminRoles.add(role);
+        adminRoles.add(role.getName());
         save();
     }
 
     public void removeAdminRole(Role role) {
-        adminRoles.remove(role);
+        adminRoles.remove(role.getName());
         save();
     }
 
@@ -124,12 +125,12 @@ public class ServerConfig {
     }
 
     public void addModRole(Role role) {
-        modRoles.add(role);
+        modRoles.add(role.getName());
         save();
     }
 
     public void removeModRole(Role role) {
-        modRoles.remove(role);
+        modRoles.remove(role.getName());
         save();
     }
 
@@ -145,8 +146,8 @@ public class ServerConfig {
         config.put("admins", arr);
 
         arr = new JSONArray();
-        for(Role adminRole : adminRoles) {
-            arr.put(adminRole.getName().toLowerCase());
+        for(String adminRole : adminRoles) {
+            arr.put(adminRole);
         }
         config.put("adminRoles", arr);
 
@@ -157,19 +158,14 @@ public class ServerConfig {
         config.put("mods", arr);
 
         arr = new JSONArray();
-        for(Role modRole : modRoles) {
-            arr.put(modRole.getName().toLowerCase());
+        for(String modRole : modRoles) {
+            arr.put(modRole);
         }
         config.put("modRoles", arr);
 
         JSONObject cmdObject = new JSONObject();
-        for(String chanId : textCommands.keySet()) {
-            Map<String, String> commandMap = textCommands.get(chanId);
-            JSONObject channelObject = new JSONObject();
-            for(Map.Entry<String, String> cmdEntry : commandMap.entrySet()) {
-                channelObject.put(cmdEntry.getKey(), cmdEntry.getValue());
-            }
-            cmdObject.put(chanId, channelObject);
+        for(String cmdkey : textCommands.keySet()) {
+            cmdObject.put(cmdkey, textCommands.get(cmdkey));
         }
         config.put("commands", cmdObject);
         writeConfig(guild.getId(), config);
@@ -192,10 +188,7 @@ public class ServerConfig {
         JSONArray adminRoleArr = config.getJSONArray("adminRoles");
         for(int i = 0; i < adminRoleArr.length(); i++) {
             String name = adminRoleArr.getString(i);
-            Optional<Role> any = guild.getRoles().stream().filter(role -> role.getName().toLowerCase().equals(name)).findAny();
-            if(any.isPresent()) {
-                adminRoles.add(any.get());
-            }
+            adminRoles.add(name);
         }
         mods.clear();
         JSONArray modArr = config.getJSONArray("mods");
@@ -206,24 +199,16 @@ public class ServerConfig {
             }
         }
         modRoles.clear();
-        JSONArray modeRoleArr = config.getJSONArray("adminRoles");
+        JSONArray modeRoleArr = config.getJSONArray("modRoles");
         for(int i = 0; i < modeRoleArr.length(); i++) {
             String name = modeRoleArr.getString(i);
-            Optional<Role> any = guild.getRoles().stream().filter(role -> role.getName().toLowerCase().equals(name)).findAny();
-            if(any.isPresent()) {
-                modRoles.add(any.get());
-            }
+            modRoles.add(name);
         }
 
         textCommands.clear();
         JSONObject commands = config.getJSONObject("commands");
-        for(String chanId : commands.keySet()) {
-            JSONObject o = commands.getJSONObject(chanId);
-            Map<String, String> cmds = new HashMap<>();
-            for(String s : o.keySet()) {
-                cmds.put(s, o.getString(s));
-            }
-            textCommands.put(chanId, cmds);
+        for(String cmdkey : commands.keySet()) {
+            textCommands.put(cmdkey, commands.getString(cmdkey));
         }
 
         prefix = config.getString("prefix");
@@ -249,6 +234,12 @@ public class ServerConfig {
                 writeConfig(id, o);
             }
             JSONObject conf = new JSONObject(new String(Files.readAllBytes(config), StandardCharsets.UTF_8));
+            switch(conf.getInt("version")) {
+                case 1:
+                    conf.put("commands", new JSONObject());
+                    writeConfig(id, conf);
+                    break;
+            }
             return conf;
         } catch(IOException ex) {
             ex.printStackTrace();
