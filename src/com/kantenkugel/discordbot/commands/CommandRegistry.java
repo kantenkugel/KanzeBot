@@ -89,6 +89,9 @@ public class CommandRegistry extends ListenerAdapter {
                                     "\nAdmins have access to everything mods can, + access to the clear command (may change)" +
                                     "\nUsage: " + cfg.getPrefix() + args[0] + " " + args[1] + " addUser/removeUser @MENTION" +
                                     "\nOr: " + cfg.getPrefix() + args[0] + " " + args[1] + " addRole/removeRole ROLENAME");
+                            MessageUtil.reply(m, "Current Admins:\n\tUsers: "
+                                    + cfg.getAdmins().stream().map(User::getUsername).reduce("None", (s1, s2) -> s1 + ", " + s2)
+                                    + "\n\tRoles: " + cfg.getAdminRoles().stream().reduce("None", (s1, s2) -> s1 + ", " + s2));
                         } else {
                             switch(args[2].toLowerCase()) {
                                 case "adduser":
@@ -128,6 +131,9 @@ public class CommandRegistry extends ListenerAdapter {
                                     "\nMods have access to adding, removing and editing text-commands, and also calling them, when they were locked via the restrictTexts config" +
                                     "\nUsage: " + cfg.getPrefix() + args[0] + " " + args[1] + " addUser/removeUser @MENTION" +
                                     "\nOr: " + cfg.getPrefix() + args[0] + " " + args[1] + " addRole/removeRole ROLENAME");
+                            MessageUtil.reply(m, "Current Mods:\n\tUsers: "
+                                    + cfg.getMods().stream().map(User::getUsername).reduce("None", (s1, s2) -> s1 + ", " + s2)
+                                    + "\n\tRoles: " + cfg.getModRoles().stream().reduce("None", (s1, s2) -> s1 + ", " + s2));
                         } else {
                             switch(args[2].toLowerCase()) {
                                 case "adduser":

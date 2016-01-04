@@ -134,6 +134,22 @@ public class ServerConfig {
         save();
     }
 
+    public Set<User> getAdmins() {
+        return admins;
+    }
+
+    public Set<String> getAdminRoles() {
+        return adminRoles;
+    }
+
+    public Set<User> getMods() {
+        return mods;
+    }
+
+    public Set<String> getModRoles() {
+        return modRoles;
+    }
+
     public void save() {
         JSONObject config = new JSONObject()
                 .put("prefix", prefix)
