@@ -34,6 +34,8 @@ public class CommandRegistry extends ListenerAdapter {
     private static final Map<String, Command> commands = new HashMap<>();
     private static final Map<String, ServerConfig> serverConfigs = new HashMap<>();
 
+    private static User kantenkugel;
+
     private static final ScriptEngine engine = new ScriptEngineManager().getEngineByName("Nashorn");
 
     public static void init() {
@@ -90,8 +92,8 @@ public class CommandRegistry extends ListenerAdapter {
                                     "\nUsage: " + cfg.getPrefix() + args[0] + " " + args[1] + " addUser/removeUser @MENTION" +
                                     "\nOr: " + cfg.getPrefix() + args[0] + " " + args[1] + " addRole/removeRole ROLENAME");
                             MessageUtil.reply(m, "Current Admins:\n\tUsers: "
-                                    + cfg.getAdmins().stream().map(User::getUsername).reduce("None", (s1, s2) -> s1 + ", " + s2)
-                                    + "\n\tRoles: " + cfg.getAdminRoles().stream().reduce("None", (s1, s2) -> s1 + ", " + s2));
+                                    + (cfg.getAdmins().size() == 0 ? "None" : cfg.getAdmins().stream().map(User::getUsername).reduce((s1, s2) -> s1 + ", " + s2).get())
+                                    + "\n\tRoles: " + (cfg.getAdminRoles().size() == 0 ? "None" : cfg.getAdminRoles().stream().reduce((s1, s2) -> s1 + ", " + s2).get()));
                         } else {
                             switch(args[2].toLowerCase()) {
                                 case "adduser":
@@ -132,8 +134,8 @@ public class CommandRegistry extends ListenerAdapter {
                                     "\nUsage: " + cfg.getPrefix() + args[0] + " " + args[1] + " addUser/removeUser @MENTION" +
                                     "\nOr: " + cfg.getPrefix() + args[0] + " " + args[1] + " addRole/removeRole ROLENAME");
                             MessageUtil.reply(m, "Current Mods:\n\tUsers: "
-                                    + cfg.getMods().stream().map(User::getUsername).reduce("None", (s1, s2) -> s1 + ", " + s2)
-                                    + "\n\tRoles: " + cfg.getModRoles().stream().reduce("None", (s1, s2) -> s1 + ", " + s2));
+                                    + (cfg.getMods().size() == 0 ? "None" : cfg.getMods().stream().map(User::getUsername).reduce((s1, s2) -> s1 + ", " + s2).get())
+                                    + "\n\tRoles: " + (cfg.getModRoles().size() == 0 ? "None" : cfg.getModRoles().stream().reduce((s1, s2) -> s1 + ", " + s2).get()));
                         } else {
                             switch(args[2].toLowerCase()) {
                                 case "adduser":
@@ -266,7 +268,7 @@ public class CommandRegistry extends ListenerAdapter {
                 if(cfg.isMod(user) || user == e.getJDA().getSelfInfo()) {
                     notKicked += user.getUsername() + ", ";
                 } else {
-                    e.getGuild().kick(user);
+                    e.getGuild().getManager().kick(user);
                 }
             }
             MessageUtil.reply(e, notKicked.isEmpty() ? "User(s) kicked" : "Following user(s) could not be kicked (mod): " + notKicked.substring(0, notKicked.length() - 2));
@@ -285,7 +287,7 @@ public class CommandRegistry extends ListenerAdapter {
                 if(cfg.isAdmin(user) || user == e.getJDA().getSelfInfo()) {
                     notBanned += user.getUsername() + ", ";
                 } else {
-                    e.getGuild().ban(user, 0);
+                    e.getGuild().getManager().ban(user, 0);
                 }
             }
             MessageUtil.reply(e, notBanned.isEmpty() ? "User(s) banned" : "Following user(s) could not be banned (admin): " + notBanned.substring(0, notBanned.length() - 2));
@@ -303,7 +305,7 @@ public class CommandRegistry extends ListenerAdapter {
                 MessageUtil.reply(e, "I do not have permissions!");
                 return;
             }
-            Optional<String> bans = e.getGuild().getBans().stream().map(u -> u.getUsername() + '(' + u.getId() + ')').reduce((s1, s2) -> s1 + ", " + s2);
+            Optional<String> bans = e.getGuild().getManager().getBans().stream().map(u -> u.getUsername() + '(' + u.getId() + ')').reduce((s1, s2) -> s1 + ", " + s2);
             if(bans.isPresent()) {
                 MessageUtil.reply(e, "Banned users: " + bans.get());
             } else {
@@ -340,7 +342,7 @@ public class CommandRegistry extends ListenerAdapter {
                 MessageUtil.reply(event, "Prefix was reset to default (" + ServerConfig.DEFAULT_PREFIX + ")");
                 return;
             }
-            if(event.getMessage().getMentionedUsers().contains(event.getJDA().getSelfInfo())) {
+            if(event.getMessage().getMentionedUsers().contains(event.getJDA().getSelfInfo()) || event.getMessage().getMentionedUsers().contains(kantenkugel)) {
                 System.out.printf("\t@[%s][%s] %s:%s\n", event.getGuild().getName(), event.getTextChannel().getName(),
                         event.getAuthor().getUsername(), event.getMessage().getContent());
             }
@@ -375,6 +377,7 @@ public class CommandRegistry extends ListenerAdapter {
         for(Guild guild : event.getJDA().getGuilds()) {
             serverConfigs.put(guild.getId(), new ServerConfig(event.getJDA(), guild));
         }
+        kantenkugel = event.getJDA().getUserById("122758889815932930");
     }
 
     @Override
