@@ -15,6 +15,8 @@
  */
 package com.kantenkugel.discordbot.util;
 
+import com.kantenkugel.discordbot.commands.Command;
+import com.kantenkugel.discordbot.modules.Module;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.entities.Guild;
 import net.dv8tion.jda.entities.Role;
@@ -35,7 +37,7 @@ import java.util.Set;
 public class ServerConfig {
     public static final String DEFAULT_PREFIX = "-kb";
     private static final Path config_folder = Paths.get("configs");
-    private static final int CURR_VERSION = 2;
+    private static final int CURR_VERSION = 3;
 
     private final JDA api;
     private final Guild guild;
@@ -43,7 +45,10 @@ public class ServerConfig {
     private final Set<String> adminRoles = new HashSet<>();
     private final Set<User> mods = new HashSet<>();
     private final Set<String> modRoles = new HashSet<>();
+    private final Map<String, Module> enabledModules = new HashMap<>();
     private final Map<String, String> textCommands = new HashMap<>();
+    private final Map<String, Command> commands = new HashMap<>();
+    private JSONObject moduleConfig;
     private String prefix = DEFAULT_PREFIX;
     private boolean restrictTexts = false;
 
@@ -150,10 +155,48 @@ public class ServerConfig {
         return modRoles;
     }
 
+    public void addModule(String moduleName) {
+        Class<? extends Module> moduleClass = Module.getModules().get(moduleName.toLowerCase());
+        if(moduleClass == null) {
+            return;
+        }
+        try {
+            Module module = moduleClass.newInstance();
+            module.fromJson(getConfigForModule(module));
+            module.init(api, this);
+            enabledModules.put(moduleName.toLowerCase(), module);
+            recalcCommands();
+            save();
+        } catch(InstantiationException | IllegalAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void removeModule(String moduleName) {
+        if(enabledModules.containsKey(moduleName.toLowerCase())) {
+            enabledModules.remove(moduleName.toLowerCase());
+            recalcCommands();
+        }
+    }
+
+    public Map<String, Module> getModules() {
+        return enabledModules;
+    }
+
+    public Map<String, Command> getCommands() {
+        return commands;
+    }
+
+    private void recalcCommands() {
+        commands.clear();
+        enabledModules.values().forEach(m -> commands.putAll(m.getCommands()));
+    }
+
     public void save() {
         JSONObject config = new JSONObject()
                 .put("prefix", prefix)
-                .put("restrictTexts", restrictTexts);
+                .put("restrictTexts", restrictTexts)
+                .put("moduleConfigs", moduleConfig);
 
         JSONArray arr = new JSONArray();
         for(User admin : admins) {
@@ -184,6 +227,13 @@ public class ServerConfig {
             cmdObject.put(cmdkey, textCommands.get(cmdkey));
         }
         config.put("commands", cmdObject);
+
+        JSONArray moduleArr = new JSONArray();
+        for(Module module : enabledModules.values()) {
+            moduleArr.put(module.getName());
+        }
+        config.put("enabledModules", moduleArr);
+
         writeConfig(guild.getId(), config);
     }
 
@@ -229,6 +279,24 @@ public class ServerConfig {
 
         prefix = config.getString("prefix");
         restrictTexts = config.getBoolean("restrictTexts");
+
+        moduleConfig = config.getJSONObject("moduleConfigs");
+        enabledModules.clear();
+        JSONArray moduleArr = config.getJSONArray("enabledModules");
+        for(int i = 0; i < moduleArr.length(); i++) {
+            addModule(moduleArr.getString(i));
+        }
+    }
+
+    protected JSONObject getConfigForModule(Module mod) {
+        if(moduleConfig.has(mod.getName())) {
+            return moduleConfig.getJSONObject(mod.getName());
+        } else {
+            JSONObject modCfg = mod.toJson();
+            moduleConfig.put(mod.getName(), modCfg);
+            save();
+            return modCfg;
+        }
     }
 
     private static JSONObject getConfig(String id) {
@@ -246,13 +314,19 @@ public class ServerConfig {
                         .put("modRoles", new JSONArray())
                         .put("prefix", DEFAULT_PREFIX)
                         .put("restrictTexts", false)
-                        .put("commands", new JSONObject());
+                        .put("commands", new JSONObject())
+                        .put("enabledModules", new JSONArray())
+                        .put("moduleConfigs", new JSONObject());
                 writeConfig(id, o);
             }
             JSONObject conf = new JSONObject(new String(Files.readAllBytes(config), StandardCharsets.UTF_8));
             switch(conf.getInt("version")) {
                 case 1:
                     conf.put("commands", new JSONObject());
+                case 2:
+                    conf
+                        .put("moduleConfigs", new JSONObject())
+                        .put("enabledModules", new JSONArray());
                     writeConfig(id, conf);
                     break;
             }
@@ -273,8 +347,9 @@ public class ServerConfig {
     }
 
     public static class PMConfig extends ServerConfig {
-        public PMConfig() {
-            super(null, null);
+        public PMConfig(JDA api) {
+            super(api, null);
+            Module.getModules().keySet().forEach(super::addModule);
         }
 
         @Override
@@ -300,6 +375,14 @@ public class ServerConfig {
         @Override
         public boolean isMod(User u) {
             return false;
+        }
+
+        @Override
+        public void save() {}
+
+        @Override
+        protected JSONObject getConfigForModule(Module mod) {
+            return new JSONObject();
         }
     }
 }

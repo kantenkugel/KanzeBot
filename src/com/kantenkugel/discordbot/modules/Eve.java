@@ -1,27 +1,32 @@
-package com.kantenkugel.discordbot.commands;
+package com.kantenkugel.discordbot.modules;
 
 import com.kantenkugel.discordbot.Item;
 import com.kantenkugel.discordbot.SolarSystem;
+import com.kantenkugel.discordbot.commands.Command;
+import com.kantenkugel.discordbot.commands.CommandWrapper;
 import com.kantenkugel.discordbot.util.MessageUtil;
+import com.kantenkugel.discordbot.util.ServerConfig;
+import net.dv8tion.jda.JDA;
+import net.dv8tion.jda.entities.Channel;
+import net.dv8tion.jda.entities.TextChannel;
 import net.dv8tion.jda.entities.impl.JDAImpl;
+import net.dv8tion.jda.events.message.MessageReceivedEvent;
 import org.json.JSONArray;
+import org.json.JSONObject;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Created by Michael Ritter on 06.12.2015.
  */
-public class EveCommands {
-    private static final List<String> eveChats = Arrays.asList("eve-online");
-    private static final boolean enabled = false;
+public class Eve extends Module {
+    private static boolean initialized = false;
+    private final Set<String> availableChats = new HashSet<>();
+    private JSONObject config = null;
 
-    public static void init(Map<String, Command> registry) {
-        if(!enabled) {
-            return;
-        }
+    public Map<String, Command> getCommands() {
+        Map<String, Command> registry = new HashMap<>();
+
         registry.put("route", setAccess(new CommandWrapper((msg, cfg) -> {
             String[] split = MessageUtil.getArgs(msg, cfg);
             if(split.length > 2) {
@@ -130,10 +135,82 @@ public class EveCommands {
                 }
             }
         })));
-        registry.put("eve", new CommandWrapper(m -> {
-            m.getAuthor().getPrivateChannel().sendMessage("Eve commands are only available via private chat. Type !help here for a list of available commands");
-            m.getMessage().deleteMessage();
-        }).acceptCustom((event, cfg) -> !event.isPrivate() && !eveChats.contains(event.getTextChannel().getName().toLowerCase())));
+        return registry;
+    }
+
+    @Override
+    public void configure(String cfgString, MessageReceivedEvent event, ServerConfig cfg) {
+        if(cfgString == null) {
+            Optional<String> chans = event.getGuild().getTextChannels().stream().filter(c -> availableChats.contains(c.getId())).map(Channel::getName).reduce((s1, s2) -> s1 + ", " + s2);
+            MessageUtil.reply(event, "Use addChannel/removeChannel CHANNELNAME to add/remove channels to whitelist"
+                    + "\nCurrent channels: " + (chans.isPresent() ? chans.get() : "All"));
+            return;
+        }
+        String[] split = cfgString.toLowerCase().split("\\s+", 2);
+        if(split.length != 2) {
+            MessageUtil.reply(event, "Invalid Syntax");
+        } else {
+            Optional<TextChannel> chan = event.getGuild().getTextChannels().stream().filter(c -> c.getName().toLowerCase().equals(split[1])).findAny();
+            if(split[0].equals("addchannel")) {
+                if(chan.isPresent()) {
+                    availableChats.add(chan.get().getId());
+                    updateConfig();
+                    cfg.save();
+                    MessageUtil.reply(event, "Channel added");
+                } else {
+                    MessageUtil.reply(event, "Channel not found!");
+                }
+            } else if(split[0].equals("removechannel")) {
+                if(chan.isPresent()) {
+                    availableChats.remove(chan.get().getId());
+                    updateConfig();
+                    cfg.save();
+                    MessageUtil.reply(event, "Channel removed");
+                } else {
+                    MessageUtil.reply(event, "Channel not found!");
+                }
+            } else {
+                MessageUtil.reply(event, "Invalid Syntax");
+            }
+        }
+    }
+
+    @Override
+    public void init(JDA jda, ServerConfig cfg) {
+        synchronized(jda) {
+            if(!initialized) {
+                initialized = true;
+                Item.init();
+                SolarSystem.init();
+            }
+        }
+    }
+
+    @Override
+    public JSONObject toJson() {
+        if(config == null) {
+            //Default config
+            return new JSONObject().put("chats", new JSONArray());
+        }
+        return config;
+    }
+
+    @Override
+    public void fromJson(JSONObject cfg) {
+        this.config = cfg;
+        if(cfg.has("chats")) {
+            JSONArray chats = cfg.getJSONArray("chats");
+            for(int i = 0; i < chats.length(); i++) {
+                this.availableChats.add(chats.getString(i));
+            }
+        } else {
+            config.put("chats", new JSONArray());
+        }
+    }
+
+    @Override
+    public String getName() {
+        return "eve";
     }
 
     private static String getSystemList(Set<SolarSystem> systems) {
@@ -154,13 +231,18 @@ public class EveCommands {
         return b.toString();
     }
 
+    private void updateConfig() {
+        JSONArray chats = new JSONArray();
+        availableChats.forEach(chats::put);
+        config.put("chats", chats);
+    }
+
     private static JSONArray makeGetRequest(String url) {
         return new JDAImpl().getRequester().getA(url);
     }
 
-    private static Command setAccess(Command wrapper) {
-        wrapper.acceptPrivate(true);
-//        eveChats.forEach(wrapper::acceptChat);
+    private Command setAccess(Command wrapper) {
+        wrapper.acceptCustom((e, cfg) -> e.isPrivate() || availableChats.contains(e.getTextChannel().getId()));
         return wrapper;
     }
 }

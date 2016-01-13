@@ -1,8 +1,10 @@
 package com.kantenkugel.discordbot.commands;
 
+import com.kantenkugel.discordbot.modules.Module;
 import com.kantenkugel.discordbot.util.MessageUtil;
 import com.kantenkugel.discordbot.util.MiscUtil;
 import com.kantenkugel.discordbot.util.ServerConfig;
+import com.kantenkugel.discordbot.util.TaskHelper;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.MessageBuilder;
 import net.dv8tion.jda.MessageHistory;
@@ -18,6 +20,7 @@ import net.dv8tion.jda.events.guild.GuildLeaveEvent;
 import net.dv8tion.jda.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.hooks.ListenerAdapter;
 import net.dv8tion.jda.utils.InviteUtil;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
@@ -48,131 +51,8 @@ public class CommandRegistry extends ListenerAdapter {
 
     private static void loadCommands() {
         commands.clear();
-        EveCommands.init(commands);
         commands.put("config", new CommandWrapper((m, cfg) -> {
-            String[] args = MessageUtil.getArgs(m, cfg);
-            if(args.length == 1) {
-                MessageUtil.reply(m, "Available subcommands: prefix, restrictTexts, leave, admins, mods\nTo get more details, run " + cfg.getPrefix() + args[0] + " SUBCOMMAND");
-            } else if(args.length > 1) {
-                switch(args[1].toLowerCase()) {
-                    case "prefix":
-                        if(args.length == 2) {
-                            MessageUtil.reply(m, "This command modifies the prefix used to call commands of this bot." +
-                                    "\nCurrent Prefix: " + cfg.getPrefix() +
-                                    "\nTo change, call " + cfg.getPrefix() + args[0] + " " + args[1] + " PREFIX");
-                        } else {
-                            cfg.setPrefix(args[2]);
-                            MessageUtil.reply(m, "Prefix changed to " + args[2]);
-                        }
-                        break;
-                    case "restricttexts":
-                        if(args.length == 2) {
-                            MessageUtil.reply(m, "This command changes the behavior of text-commands." +
-                                    "\nIf restrictTexts is set to true, only mods can call the text-commands" +
-                                    "\nIf set to false, everyone can (default)" +
-                                    "\nrestrictTexts is currently set to: " + cfg.isRestrictTexts() +
-                                    "\nTo change, call " + cfg.getPrefix() + args[0] + " " + args[1] + " true/false");
-                        } else {
-                            cfg.setRestrictTexts(Boolean.parseBoolean(args[2]));
-                            MessageUtil.reply(m, "restrictTexts changed to " + cfg.isRestrictTexts());
-                        }
-                        break;
-                    case "leave":
-                        if(args.length == 2) {
-                            MessageUtil.reply(m, "This will make the bot leave this server!" +
-                                    "\nTo leave, call " + cfg.getPrefix() + args[0] + " " + args[1] + " YES");
-                        } else if(args[2].equals("YES")) {
-                            m.getGuild().getManager().leaveOrDelete();
-                        }
-                        break;
-                    case "admins":
-                        if(args.length < 4) {
-                            MessageUtil.reply(m, "This will add/remove Users and/or Roles to the admin-set" +
-                                    "\nAdmins have access to everything mods can, + access to the clear command (may change)" +
-                                    "\nUsage: " + cfg.getPrefix() + args[0] + " " + args[1] + " addUser/removeUser @MENTION" +
-                                    "\nOr: " + cfg.getPrefix() + args[0] + " " + args[1] + " addRole/removeRole ROLENAME");
-                            MessageUtil.reply(m, "Current Admins:\n\tUsers: "
-                                    + (cfg.getAdmins().size() == 0 ? "None" : cfg.getAdmins().stream().map(User::getUsername).reduce((s1, s2) -> s1 + ", " + s2).get())
-                                    + "\n\tRoles: " + (cfg.getAdminRoles().size() == 0 ? "None" : cfg.getAdminRoles().stream().reduce((s1, s2) -> s1 + ", " + s2).get()));
-                        } else {
-                            switch(args[2].toLowerCase()) {
-                                case "adduser":
-                                    m.getMessage().getMentionedUsers().forEach(cfg::addAdmin);
-                                    MessageUtil.reply(m, "User(s) added as admin(s)");
-                                    break;
-                                case "removeuser":
-                                    m.getMessage().getMentionedUsers().forEach(cfg::removeAdmin);
-                                    MessageUtil.reply(m, "User(s) removed from admin(s)");
-                                    break;
-                                case "addrole":
-                                    Optional<Role> any = m.getGuild().getRoles().stream().filter(r -> r.getName().equalsIgnoreCase(args[3])).findAny();
-                                    if(any.isPresent()) {
-                                        cfg.addAdminRole(any.get());
-                                        MessageUtil.reply(m, "Role " + any.get().getName() + " added as admin role");
-                                    } else {
-                                        MessageUtil.reply(m, "No role matching given name found");
-                                    }
-                                    break;
-                                case "removerole":
-                                    Optional<Role> anyremove = m.getGuild().getRoles().stream().filter(r -> r.getName().equalsIgnoreCase(args[3])).findAny();
-                                    if(anyremove.isPresent()) {
-                                        cfg.removeAdminRole(anyremove.get());
-                                        MessageUtil.reply(m, "Role " + anyremove.get().getName() + " removed from admin roles");
-                                    } else {
-                                        MessageUtil.reply(m, "No role matching given name found");
-                                    }
-                                    break;
-                                default:
-                                    MessageUtil.reply(m, "Invalid syntax");
-                            }
-                        }
-                        break;
-                    case "mods":
-                        if(args.length < 4) {
-                            MessageUtil.reply(m, "This will add/remove Users and/or Roles to the mods-set" +
-                                    "\nMods have access to adding, removing and editing text-commands, and also calling them, when they were locked via the restrictTexts config" +
-                                    "\nUsage: " + cfg.getPrefix() + args[0] + " " + args[1] + " addUser/removeUser @MENTION" +
-                                    "\nOr: " + cfg.getPrefix() + args[0] + " " + args[1] + " addRole/removeRole ROLENAME");
-                            MessageUtil.reply(m, "Current Mods:\n\tUsers: "
-                                    + (cfg.getMods().size() == 0 ? "None" : cfg.getMods().stream().map(User::getUsername).reduce((s1, s2) -> s1 + ", " + s2).get())
-                                    + "\n\tRoles: " + (cfg.getModRoles().size() == 0 ? "None" : cfg.getModRoles().stream().reduce((s1, s2) -> s1 + ", " + s2).get()));
-                        } else {
-                            switch(args[2].toLowerCase()) {
-                                case "adduser":
-                                    m.getMessage().getMentionedUsers().forEach(cfg::addMod);
-                                    MessageUtil.reply(m, "User(s) added as mod(s)");
-                                    break;
-                                case "removeuser":
-                                    m.getMessage().getMentionedUsers().forEach(cfg::removeMod);
-                                    MessageUtil.reply(m, "User(s) removed from mod(s)");
-                                    break;
-                                case "addrole":
-                                    Optional<Role> any = m.getGuild().getRoles().stream().filter(r -> r.getName().equalsIgnoreCase(args[3])).findAny();
-                                    if(any.isPresent()) {
-                                        cfg.addModRole(any.get());
-                                        MessageUtil.reply(m, "Role " + any.get().getName() + " added as mod role");
-                                    } else {
-                                        MessageUtil.reply(m, "No role matching given name found");
-                                    }
-                                    break;
-                                case "removerole":
-                                    Optional<Role> anyremove = m.getGuild().getRoles().stream().filter(r -> r.getName().equalsIgnoreCase(args[3])).findAny();
-                                    if(anyremove.isPresent()) {
-                                        cfg.removeModRole(anyremove.get());
-                                        MessageUtil.reply(m, "Role " + anyremove.get().getName() + " removed from mod roles");
-                                    } else {
-                                        MessageUtil.reply(m, "No role matching given name found");
-                                    }
-                                    break;
-                                default:
-                                    MessageUtil.reply(m, "Invalid syntax");
-                            }
-                        }
-                        break;
-                    default:
-                        MessageUtil.reply(m, "Invalid syntax");
-                }
-            }
+            CommandRegistry.config(m, cfg);
         }).acceptPrivate(false).acceptPriv(Command.Priv.OWNER));
         commands.put("addcom", new CommandWrapper((m, cfg) -> {
             String[] args = MessageUtil.getArgs(m, cfg, 3);
@@ -218,12 +98,18 @@ public class CommandRegistry extends ListenerAdapter {
             }
         }).acceptPriv(Command.Priv.MOD).acceptPrivate(false));
         commands.put("help", new CommandWrapper((m, cfg) -> {
+            String returned;
             Optional<String> reduce = commands.keySet().stream().filter(key -> commands.get(key).isAvailable(m, cfg)).sorted().map(orig -> cfg.getPrefix() + orig).reduce((s1, s2) -> s1 + ", " + s2);
             if(reduce.isPresent()) {
-                MessageUtil.reply(m, "Available Commands: " + reduce.get());
+                returned = "Available Commands: " + reduce.get();
             } else {
-                MessageUtil.reply(m, "No Commands available to you at this time in this chat");
+                returned = "No Commands available to you at this time in this chat";
             }
+            reduce = cfg.getCommands().entrySet().stream().filter(entry -> entry.getValue().isAvailable(m, cfg)).map(entry -> cfg.getPrefix() + entry.getKey()).reduce((s1, s2) -> s1 + ", " + s2);
+            if(reduce.isPresent()) {
+                returned += "\nAvailable through modules: " + reduce.get();
+            }
+            MessageUtil.reply(m, returned);
             if(m.isPrivate()) {
                 MessageUtil.reply(m, "In Guilds, my commands may be prefixed differently (standard prefix in guilds is -kb instead of !)");
             }
@@ -245,12 +131,12 @@ public class CommandRegistry extends ListenerAdapter {
             String[] args = MessageUtil.getArgs(m, cfg);
             if(args.length == 1) {
                 MessageHistory history = new MessageHistory(m.getJDA(), m.getTextChannel());
-                new Thread(new ClearRunner(history, null)).start();
+                TaskHelper.start("clear" + m.getTextChannel().getId(), new ClearRunner(history, null));
             } else if(args.length == 2) {
                 OffsetDateTime clearTo = MiscUtil.getOffsettedTime(args[1]);
                 if(clearTo != null) {
                     MessageHistory history = new MessageHistory(m.getJDA(), m.getTextChannel());
-                    new Thread(new ClearRunner(history, clearTo)).start();
+                    TaskHelper.start("clear" + m.getTextChannel().getId(), new ClearRunner(history, clearTo));
                 }
             }
         }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
@@ -347,8 +233,9 @@ public class CommandRegistry extends ListenerAdapter {
                         event.getAuthor().getUsername(), event.getMessage().getContent());
             }
         } else {
-            cfg = new ServerConfig.PMConfig();
-            System.out.println("\tP[" + event.getAuthor().getUsername() + "]: " + event.getMessage().getContent());
+            cfg = new ServerConfig.PMConfig(event.getJDA());
+            if(event.getAuthor() != event.getJDA().getSelfInfo())
+                System.out.println("\tP[" + event.getAuthor().getUsername() + "]: " + event.getMessage().getContent());
         }
 
         if(event.getMessage().getContent().startsWith(cfg.getPrefix())) {
@@ -358,6 +245,10 @@ public class CommandRegistry extends ListenerAdapter {
                     commands.get(args[0]).accept(event, cfg);
                 }
 
+            } else if(cfg.getCommands().containsKey(args[0])) {
+                if(cfg.getCommands().get(args[0]).isAvailable(event, cfg)) {
+                    cfg.getCommands().get(args[0]).accept(event, cfg);
+                }
             } else if(!event.isPrivate()) {
                 if(cfg.isRestrictTexts() && !cfg.isMod(event.getAuthor())) {
                     //texts only available to mods
@@ -397,11 +288,201 @@ public class CommandRegistry extends ListenerAdapter {
             InviteUtil.join(event.getInvite(), event.getJDA());
             String text = "Joined Guild! Server owner should probably configure me via the config command\nDefault prefix is: "
                     + ServerConfig.DEFAULT_PREFIX + "\nThe owner can reset it by calling -kbreset";
-            System.out.println("Joining Guild " + event.getInvite().getGuildName() + " via invite of " + event.getAuthor());
+            System.out.println("Joining Guild " + event.getInvite().getGuildName() + " via invite of " + event.getAuthor().getUsername());
             if(event.getMessage().isPrivate()) {
                 event.getJDA().getPrivateChannelById(event.getMessage().getChannelId()).sendMessage(text);
             } else {
                 event.getJDA().getTextChannelById(event.getMessage().getChannelId()).sendMessage(text);
+            }
+        }
+    }
+
+    private static void config(MessageReceivedEvent event, ServerConfig cfg) {
+        String[] args = MessageUtil.getArgs(event, cfg);
+        if(args.length == 1) {
+            MessageUtil.reply(event, "Available subcommands: prefix, restrictTexts, leave, admins, mods, modules\nTo get more details, run " + cfg.getPrefix() + args[0] + " SUBCOMMAND");
+        } else if(args.length > 1) {
+            String key = null;
+            if(args.length > 2) {
+                key = args[2].toLowerCase();
+            }
+            switch(args[1].toLowerCase()) {
+                case "prefix":
+                    if(args.length == 2) {
+                        MessageUtil.reply(event, "This command modifies the prefix used to call commands of this bot." +
+                                "\nCurrent Prefix: " + cfg.getPrefix() +
+                                "\nTo change, call " + cfg.getPrefix() + args[0] + " " + args[1] + " PREFIX");
+                    } else {
+                        cfg.setPrefix(args[2]);
+                        MessageUtil.reply(event, "Prefix changed to " + args[2]);
+                    }
+                    break;
+                case "restricttexts":
+                    if(args.length == 2) {
+                        MessageUtil.reply(event, "This command changes the behavior of text-commands." +
+                                "\nIf restrictTexts is set to true, only mods can call the text-commands" +
+                                "\nIf set to false, everyone can (default)" +
+                                "\nrestrictTexts is currently set to: " + cfg.isRestrictTexts() +
+                                "\nTo change, call " + cfg.getPrefix() + args[0] + " " + args[1] + " true/false");
+                    } else {
+                        cfg.setRestrictTexts(Boolean.parseBoolean(args[2]));
+                        MessageUtil.reply(event, "restrictTexts changed to " + cfg.isRestrictTexts());
+                    }
+                    break;
+                case "leave":
+                    if(args.length == 2) {
+                        MessageUtil.reply(event, "This will make the bot leave this server!" +
+                                "\nTo leave, call " + cfg.getPrefix() + args[0] + " " + args[1] + " YES");
+                    } else if(args[2].equals("YES")) {
+                        event.getGuild().getManager().leaveOrDelete();
+                    }
+                    break;
+                case "admins":
+                    if(args.length < 4) {
+                        MessageUtil.reply(event, "This will add/remove Users and/or Roles to the admin-set" +
+                                "\nAdmins have access to everything mods can, + access to the clear command (may change)" +
+                                "\nUsage: " + cfg.getPrefix() + args[0] + " " + args[1] + " addUser/removeUser @MENTION" +
+                                "\nOr: " + cfg.getPrefix() + args[0] + " " + args[1] + " addRole/removeRole ROLENAME");
+                        MessageUtil.reply(event, "Current Admins:\n\tUsers: "
+                                + (cfg.getAdmins().size() == 0 ? "None" : cfg.getAdmins().stream().map(User::getUsername).reduce((s1, s2) -> s1 + ", " + s2).get())
+                                + "\n\tRoles: " + (cfg.getAdminRoles().size() == 0 ? "None" : cfg.getAdminRoles().stream().reduce((s1, s2) -> s1 + ", " + s2).get()));
+                    } else {
+                        switch(key) {
+                            case "adduser":
+                                event.getMessage().getMentionedUsers().forEach(cfg::addAdmin);
+                                MessageUtil.reply(event, "User(s) added as admin(s)");
+                                break;
+                            case "removeuser":
+                                event.getMessage().getMentionedUsers().forEach(cfg::removeAdmin);
+                                MessageUtil.reply(event, "User(s) removed from admin(s)");
+                                break;
+                            case "addrole":
+                                String name = StringUtils.join(args, ' ', 3, args.length);
+                                Optional<Role> any = event.getGuild().getRoles().stream().filter(r -> r.getName().equalsIgnoreCase(name)).findAny();
+                                if(any.isPresent()) {
+                                    cfg.addAdminRole(any.get());
+                                    MessageUtil.reply(event, "Role " + any.get().getName() + " added as admin role");
+                                } else {
+                                    MessageUtil.reply(event, "No role matching given name found");
+                                }
+                                break;
+                            case "removerole":
+                                String name2 = StringUtils.join(args, ' ', 3, args.length);
+                                Optional<Role> anyremove = event.getGuild().getRoles().stream().filter(r -> r.getName().equalsIgnoreCase(name2)).findAny();
+                                if(anyremove.isPresent()) {
+                                    cfg.removeAdminRole(anyremove.get());
+                                    MessageUtil.reply(event, "Role " + anyremove.get().getName() + " removed from admin roles");
+                                } else {
+                                    MessageUtil.reply(event, "No role matching given name found");
+                                }
+                                break;
+                            default:
+                                MessageUtil.reply(event, "Invalid syntax");
+                        }
+                    }
+                    break;
+                case "mods":
+                    if(args.length < 4) {
+                        MessageUtil.reply(event, "This will add/remove Users and/or Roles to the mods-set" +
+                                "\nMods have access to adding, removing and editing text-commands, and also calling them, when they were locked via the restrictTexts config" +
+                                "\nUsage: " + cfg.getPrefix() + args[0] + " " + args[1] + " addUser/removeUser @MENTION" +
+                                "\nOr: " + cfg.getPrefix() + args[0] + " " + args[1] + " addRole/removeRole ROLENAME");
+                        MessageUtil.reply(event, "Current Mods:\n\tUsers: "
+                                + (cfg.getMods().size() == 0 ? "None" : cfg.getMods().stream().map(User::getUsername).reduce((s1, s2) -> s1 + ", " + s2).get())
+                                + "\n\tRoles: " + (cfg.getModRoles().size() == 0 ? "None" : cfg.getModRoles().stream().reduce((s1, s2) -> s1 + ", " + s2).get()));
+                    } else {
+                        switch(key) {
+                            case "adduser":
+                                event.getMessage().getMentionedUsers().forEach(cfg::addMod);
+                                MessageUtil.reply(event, "User(s) added as mod(s)");
+                                break;
+                            case "removeuser":
+                                event.getMessage().getMentionedUsers().forEach(cfg::removeMod);
+                                MessageUtil.reply(event, "User(s) removed from mod(s)");
+                                break;
+                            case "addrole":
+                                String name = StringUtils.join(args, ' ', 3, args.length);
+                                Optional<Role> any = event.getGuild().getRoles().stream().filter(r -> r.getName().equalsIgnoreCase(name)).findAny();
+                                if(any.isPresent()) {
+                                    cfg.addModRole(any.get());
+                                    MessageUtil.reply(event, "Role " + any.get().getName() + " added as mod role");
+                                } else {
+                                    MessageUtil.reply(event, "No role matching given name found");
+                                }
+                                break;
+                            case "removerole":
+                                String name2 = StringUtils.join(args, ' ', 3, args.length);
+                                Optional<Role> anyremove = event.getGuild().getRoles().stream().filter(r -> r.getName().equalsIgnoreCase(name2)).findAny();
+                                if(anyremove.isPresent()) {
+                                    cfg.removeModRole(anyremove.get());
+                                    MessageUtil.reply(event, "Role " + anyremove.get().getName() + " removed from mod roles");
+                                } else {
+                                    MessageUtil.reply(event, "No role matching given name found");
+                                }
+                                break;
+                            default:
+                                MessageUtil.reply(event, "Invalid syntax");
+                        }
+                    }
+                    break;
+                case "modules":
+                    if(args.length < 4) {
+                        MessageUtil.reply(event, "This will add/remove/configure Modules on this Guild" +
+                                "\nUsage: " + cfg.getPrefix() + args[0] + " " + args[1] + " enable/disable MODULE" +
+                                "\nOr: " + cfg.getPrefix() + args[0] + " " + args[1] + " configure MODULE\n");
+                        MessageUtil.reply(event, "Currently enabled Modules:\n\t"
+                                + (cfg.getModules().size() == 0 ? "None" : cfg.getModules().keySet().stream().reduce((s1, s2) -> s1 + ", " + s2).get())
+                                + "\nAvailable Modules:\n\t"
+                                + (Module.getModules().size() == 0 ? "None" : Module.getModules().keySet().stream().reduce((s1, s2) -> s1 + ", " + s2).get()));
+                    } else {
+                        String val = null;
+                        if(args.length > 3) {
+                            val = args[3].toLowerCase();
+                        }
+                        switch(key) {
+                            case "enable":
+                                if(Module.getModules().containsKey(val)) {
+                                    if(!cfg.getModules().containsKey(val)) {
+                                        cfg.addModule(val);
+                                        MessageUtil.reply(event, "Module enabled");
+                                    } else {
+                                        MessageUtil.reply(event, "Module was already enabled!");
+                                    }
+                                } else {
+                                    MessageUtil.reply(event, "Module does not exist");
+                                }
+                                break;
+                            case "disable":
+                                if(Module.getModules().containsKey(val)) {
+                                    if(cfg.getModules().containsKey(val)) {
+                                        cfg.removeModule(val);
+                                        MessageUtil.reply(event, "Module disabled");
+                                    } else {
+                                        MessageUtil.reply(event, "Module was not enabled!");
+                                    }
+                                } else {
+                                    MessageUtil.reply(event, "Module does not exist");
+                                }
+                                break;
+                            case "configure":
+                                if(Module.getModules().containsKey(val)) {
+                                    if(cfg.getModules().containsKey(val)) {
+                                        String cfgString = args.length > 4 ? StringUtils.join(args, ' ', 4, args.length) : null;
+                                        cfg.getModules().get(val).configure(cfgString, event, cfg);
+                                    } else {
+                                        MessageUtil.reply(event, "Module was not enabled!");
+                                    }
+                                } else {
+                                    MessageUtil.reply(event, "Module does not exist");
+                                }
+                                break;
+                            default:
+                                MessageUtil.reply(event, "Invalid syntax");
+                        }
+                    }
+                    break;
+                default:
+                    MessageUtil.reply(event, "Invalid syntax");
             }
         }
     }
@@ -438,5 +519,4 @@ public class CommandRegistry extends ListenerAdapter {
             }
         }
     }
-
 }
