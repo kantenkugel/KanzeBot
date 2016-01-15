@@ -1,9 +1,9 @@
 package com.kantenkugel.discordbot.modules;
 
-import com.kantenkugel.discordbot.Item;
-import com.kantenkugel.discordbot.SolarSystem;
 import com.kantenkugel.discordbot.commands.Command;
 import com.kantenkugel.discordbot.commands.CommandWrapper;
+import com.kantenkugel.discordbot.moduleutils.Item;
+import com.kantenkugel.discordbot.moduleutils.SolarSystem;
 import com.kantenkugel.discordbot.util.MessageUtil;
 import com.kantenkugel.discordbot.util.ServerConfig;
 import net.dv8tion.jda.JDA;

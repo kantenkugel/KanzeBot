@@ -1,4 +1,4 @@
-package com.kantenkugel.discordbot;
+package com.kantenkugel.discordbot.moduleutils;
 
 import java.util.ArrayList;
 import java.util.Collections;

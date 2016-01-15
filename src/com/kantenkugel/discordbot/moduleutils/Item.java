@@ -1,4 +1,4 @@
-package com.kantenkugel.discordbot;
+package com.kantenkugel.discordbot.moduleutils;
 
 import java.io.IOException;
 import java.nio.file.Files;

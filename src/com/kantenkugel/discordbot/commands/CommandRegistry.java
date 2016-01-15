@@ -34,6 +34,7 @@ import java.util.Optional;
  * Created by Michael Ritter on 06.12.2015.
  */
 public class CommandRegistry extends ListenerAdapter {
+    public static long START_TIME = System.currentTimeMillis();
     private static final Map<String, Command> commands = new HashMap<>();
     private static final Map<String, ServerConfig> serverConfigs = new HashMap<>();
 
@@ -216,6 +217,28 @@ public class CommandRegistry extends ListenerAdapter {
                 m.getTextChannel().sendMessage(msg);
             }
         }).acceptCustom((e, cfg) -> MessageUtil.isGlobalAdmin(e.getAuthor())));
+        commands.put("uptime", new CommandWrapper((event, cfg) -> {
+            long diff = System.currentTimeMillis()-START_TIME;
+            diff = diff/1000; //to s
+            long hrs = diff/3600;
+            long mins = (diff%3600)/60;
+            long secs = diff%60;
+            MessageUtil.reply(event, String.format("Running for %dh %dm %ds", hrs, mins, secs));
+        }));
+        commands.put("shutdown", new CommandWrapper((msg, cfg) -> {
+            MessageUtil.reply(msg, "OK, Bye!");
+            msg.getJDA().shutdown();
+        }).acceptCustom((event, cfg) -> MessageUtil.isGlobalAdmin(event.getAuthor())));
+        commands.put("info", new CommandWrapper((event, cfg) -> {
+            String text = String.format("```\nUser:\n\t%-15s%s\n\t%-15s%s\n\t%-15s%s\n\t%-15s%s\n" +
+                    "Channel:\n\t%-15s%s\n\t%-15s%s\n" +
+                    "Guild:\n\t%-15s%s\n\t%-15s%s\n\t%-15s%s\n```",
+                    "Name", event.getAuthor().getUsername(), "ID", event.getAuthor().getId(), "Discriminator", event.getAuthor().getDiscriminator(),
+                    "Avatar", event.getAuthor().getAvatarUrl()==null?"None":event.getAuthor().getAvatarUrl(),
+                    "Name", event.getTextChannel().getName(), "ID", event.getTextChannel().getId(),
+                    "Name", event.getGuild().getName(), "ID", event.getGuild().getId(), "Icon", event.getGuild().getIconUrl()==null?"None":event.getGuild().getIconUrl());
+            MessageUtil.reply(event, text, false);
+        }).acceptPrivate(false));
     }
 
     @Override

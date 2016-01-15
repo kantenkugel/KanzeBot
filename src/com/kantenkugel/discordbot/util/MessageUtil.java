@@ -13,10 +13,18 @@ public class MessageUtil {
     }
 
     public static void reply(MessageReceivedEvent event, String txt) {
+        reply(event, txt, true);
+    }
+
+    public static void reply(MessageReceivedEvent event, String txt, boolean addName) {
         if(event.isPrivate()) {
             event.getPrivateChannel().sendMessage(txt);
         } else {
-            event.getTextChannel().sendMessage(new MessageBuilder().appendString(event.getAuthor().getUsername()).appendString(": ").appendString(txt).build());
+            MessageBuilder mb = new MessageBuilder();
+            if(addName) {
+                mb.appendString(event.getAuthor().getUsername()).appendString(": ");
+            }
+            event.getTextChannel().sendMessage(mb.appendString(txt).build());
         }
     }
 
