@@ -1,18 +1,3 @@
-/**
- * Copyright 2015-2016 Austin Keener & Michael Ritter
- * <p>
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package com.kantenkugel.discordbot.modules;
 
 import com.kantenkugel.discordbot.commands.Command;
@@ -41,28 +26,84 @@ public abstract class Module {
         });
     }
 
+    /**
+     * Used to manually register Modules. (Modules in the com.kantenkugel.discordbot.modules package are automatically loaded when init is called)
+     * @param moduleClass
+     *      the module to register
+     */
     public static void register(Class<? extends Module> moduleClass) {
         try {
             Module module = moduleClass.newInstance();
-            modules.put(module.getName().toLowerCase(), moduleClass);
+            modules.putIfAbsent(module.getName().toLowerCase(), moduleClass);
             System.out.println("Registered module "+module.getName().toLowerCase());
         } catch(InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
         }
     }
 
+    /**
+     * Get the name of this module. The name should be all lowercase.
+     * This name is used as key for enabling/disabling/configuring the module
+     *
+     * @return
+     *      this modules name
+     */
     public abstract String getName();
 
+    /**
+     * initializes this module. This is called after {@link #fromJson(JSONObject)}.
+     * @param jda
+     *      the JDA object
+     * @param cfg
+     *      the ServerConfig object
+     */
     public abstract void init(JDA jda, ServerConfig cfg);
 
+    /**
+     * Called when the Guild-owner tries to configure this module.
+     * If changes were made to the configuration, you should call cfg.save()
+     *
+     * @param cfgString
+     *      null if no config string is supplied (help), or the string supplied to configure
+     * @param event
+     *      the complete MessageReceivedEvent
+     * @param cfg
+     *      the ServerConfig Object
+     */
     public abstract void configure(String cfgString, MessageReceivedEvent event, ServerConfig cfg);
 
+    /**
+     * This method should return all Commands available via this Module.
+     * This is only called when the list of modules in a guild is refreshed and can therefore recalc the Map each time without major performance impact
+     *
+     * @return
+     *      the Map of all available commands (with the key being the command name)
+     */
     public abstract Map<String, Command> getCommands();
 
+    /**
+     * Should return the Configuration-Object for this module.
+     * This method is either called when the server-config is saved, or when this module is first added to a server.
+     * Therefore this method should return the default Configuration Object, if this module didn't go through the fromJson+init progress already
+     *
+     * @return
+     *      the current Configuration, or default Configuration, if module didn't get initialized
+     */
     public abstract JSONObject toJson();
 
+    /**
+     * This is getting called when this module is loaded.
+     * The given JsonObject is the current Current configuration Object of this module in the server.
+     * This is always called before {@link #init(JDA, ServerConfig)}
+     *
+     * @param cfg
+     *      the current Configuration
+     */
     public abstract void fromJson(JSONObject cfg);
 
+    /**
+     * Currently unused, but should unload resources from this module (called once this module is removed from the last guild)
+     */
     public void unload() {
     }
 }
