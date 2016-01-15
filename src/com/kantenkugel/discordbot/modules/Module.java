@@ -16,6 +16,7 @@
 package com.kantenkugel.discordbot.modules;
 
 import com.kantenkugel.discordbot.commands.Command;
+import com.kantenkugel.discordbot.util.ClassEnumerator;
 import com.kantenkugel.discordbot.util.ServerConfig;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.events.message.MessageReceivedEvent;
@@ -32,10 +33,19 @@ public abstract class Module {
         return modules;
     }
 
+    public static void init() {
+        ClassEnumerator.getClassesForPackage(Module.class.getPackage()).stream().filter(aClass -> Module.class.isAssignableFrom(aClass) && !aClass.equals(Module.class)).forEach(aClass -> {
+            @SuppressWarnings("unchecked")
+            Class<? extends Module> module = (Class<? extends Module>) aClass;
+            register(module);
+        });
+    }
+
     public static void register(Class<? extends Module> moduleClass) {
         try {
             Module module = moduleClass.newInstance();
             modules.put(module.getName().toLowerCase(), moduleClass);
+            System.out.println("Registered module "+module.getName().toLowerCase());
         } catch(InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
         }

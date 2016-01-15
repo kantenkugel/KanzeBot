@@ -1,7 +1,6 @@
 package com.kantenkugel.discordbot;
 
 import com.kantenkugel.discordbot.commands.CommandRegistry;
-import com.kantenkugel.discordbot.modules.Eve;
 import com.kantenkugel.discordbot.modules.Module;
 import com.kantenkugel.discordbot.util.UpdateWatcher;
 import net.dv8tion.jda.JDA;
@@ -29,7 +28,7 @@ public class Main {
         }
 
         CommandRegistry.init();
-        Module.register(Eve.class);
+        Module.init();
         try {
             JDABuilder jdaBuilder = new JDABuilder(args[0], args[1]).addListener(new CommandRegistry());
             if(args.length == 4) {
