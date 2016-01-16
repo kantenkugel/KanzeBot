@@ -21,6 +21,7 @@ import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.entities.Guild;
 import net.dv8tion.jda.entities.Role;
 import net.dv8tion.jda.entities.User;
+import net.dv8tion.jda.entities.impl.GuildImpl;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -29,22 +30,19 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class ServerConfig {
     public static final String DEFAULT_PREFIX = "-kb";
     private static final Path config_folder = Paths.get("configs");
-    private static final int CURR_VERSION = 3;
+    private static final int CURR_VERSION = 4;
 
     private final JDA api;
     private final Guild guild;
     private final Set<User> admins = new HashSet<>();
-    private final Set<String> adminRoles = new HashSet<>();
+    private final Set<Role> adminRoles = new HashSet<>();
     private final Set<User> mods = new HashSet<>();
-    private final Set<String> modRoles = new HashSet<>();
+    private final Set<Role> modRoles = new HashSet<>();
     private final Map<String, Module> enabledModules = new HashMap<>();
     private final Map<String, String> textCommands = new HashMap<>();
     private final Map<String, Command> commands = new HashMap<>();
@@ -82,17 +80,17 @@ public class ServerConfig {
     }
 
     public boolean isAdmin(User u) {
-        if(isOwner(u) || admins.contains(u) || adminRoles.contains("@everyone")) {
+        if(isOwner(u) || admins.contains(u) || adminRoles.contains(guild.getPublicRole())) {
             return true;
         }
-        return guild.getRolesForUser(u).stream().map(Role::getName).anyMatch(adminRoles::contains);
+        return guild.getRolesForUser(u).stream().anyMatch(adminRoles::contains);
     }
 
     public boolean isMod(User u) {
-        if(isAdmin(u) || mods.contains(u) || modRoles.contains("@everyone")) {
+        if(isAdmin(u) || mods.contains(u) || modRoles.contains(guild.getPublicRole())) {
             return true;
         }
-        return guild.getRolesForUser(u).stream().map(Role::getName).anyMatch(modRoles::contains);
+        return guild.getRolesForUser(u).stream().anyMatch(modRoles::contains);
     }
 
     public Map<String, String> getTextCommands() {
@@ -110,12 +108,12 @@ public class ServerConfig {
     }
 
     public void addAdminRole(Role role) {
-        adminRoles.add(role.getName());
+        adminRoles.add(role);
         save();
     }
 
     public void removeAdminRole(Role role) {
-        adminRoles.remove(role.getName());
+        adminRoles.remove(role);
         save();
     }
 
@@ -130,12 +128,12 @@ public class ServerConfig {
     }
 
     public void addModRole(Role role) {
-        modRoles.add(role.getName());
+        modRoles.add(role);
         save();
     }
 
     public void removeModRole(Role role) {
-        modRoles.remove(role.getName());
+        modRoles.remove(role);
         save();
     }
 
@@ -143,7 +141,7 @@ public class ServerConfig {
         return admins;
     }
 
-    public Set<String> getAdminRoles() {
+    public Set<Role> getAdminRoles() {
         return adminRoles;
     }
 
@@ -151,7 +149,7 @@ public class ServerConfig {
         return mods;
     }
 
-    public Set<String> getModRoles() {
+    public Set<Role> getModRoles() {
         return modRoles;
     }
 
@@ -205,8 +203,8 @@ public class ServerConfig {
         config.put("admins", arr);
 
         arr = new JSONArray();
-        for(String adminRole : adminRoles) {
-            arr.put(adminRole);
+        for(Role adminRole : adminRoles) {
+            arr.put(adminRole.getId());
         }
         config.put("adminRoles", arr);
 
@@ -217,8 +215,8 @@ public class ServerConfig {
         config.put("mods", arr);
 
         arr = new JSONArray();
-        for(String modRole : modRoles) {
-            arr.put(modRole);
+        for(Role modRole : modRoles) {
+            arr.put(modRole.getId());
         }
         config.put("modRoles", arr);
 
@@ -238,7 +236,7 @@ public class ServerConfig {
     }
 
     private void load() {
-        JSONObject config = getConfig(guild.getId());
+        JSONObject config = getConfig(guild);
         if(config == null) {
             return;
         }
@@ -250,11 +248,15 @@ public class ServerConfig {
                 admins.add(admin);
             }
         }
+
+        GuildImpl guildImpl = (GuildImpl) this.guild;
         adminRoles.clear();
         JSONArray adminRoleArr = config.getJSONArray("adminRoles");
         for(int i = 0; i < adminRoleArr.length(); i++) {
-            String name = adminRoleArr.getString(i);
-            adminRoles.add(name);
+            Role role = guildImpl.getRolesMap().get(adminRoleArr.getString(i));
+            if(role != null) {
+                adminRoles.add(role);
+            }
         }
         mods.clear();
         JSONArray modArr = config.getJSONArray("mods");
@@ -267,8 +269,10 @@ public class ServerConfig {
         modRoles.clear();
         JSONArray modeRoleArr = config.getJSONArray("modRoles");
         for(int i = 0; i < modeRoleArr.length(); i++) {
-            String name = modeRoleArr.getString(i);
-            modRoles.add(name);
+            Role role = guildImpl.getRolesMap().get(modeRoleArr.getString(i));
+            if(role != null) {
+                modRoles.add(role);
+            }
         }
 
         textCommands.clear();
@@ -299,12 +303,12 @@ public class ServerConfig {
         }
     }
 
-    private static JSONObject getConfig(String id) {
+    private static JSONObject getConfig(Guild g) {
         try {
             if(!Files.exists(config_folder)) {
                 Files.createDirectories(config_folder);
             }
-            Path config = config_folder.resolve("./" + id + ".json");
+            Path config = config_folder.resolve("./" + g.getId() + ".json");
             if(!Files.exists(config)) {
                 Files.createFile(config);
                 JSONObject o = new JSONObject()
@@ -317,7 +321,7 @@ public class ServerConfig {
                         .put("commands", new JSONObject())
                         .put("enabledModules", new JSONArray())
                         .put("moduleConfigs", new JSONObject());
-                writeConfig(id, o);
+                writeConfig(g.getId(), o);
             }
             JSONObject conf = new JSONObject(new String(Files.readAllBytes(config), StandardCharsets.UTF_8));
             switch(conf.getInt("version")) {
@@ -327,7 +331,29 @@ public class ServerConfig {
                     conf
                         .put("moduleConfigs", new JSONObject())
                         .put("enabledModules", new JSONArray());
-                    writeConfig(id, conf);
+                case 3:
+                    JSONArray adminRoles = conf.getJSONArray("adminRoles");
+                    JSONArray newRoles = new JSONArray();
+                    for(int i = 0; i < adminRoles.length(); i++) {
+                        String name = adminRoles.getString(i);
+                        Optional<Role> any = g.getRoles().stream().filter(r -> r.getName().equals(name)).findAny();
+                        if(any.isPresent()) {
+                            newRoles.put(any.get().getId());
+                        }
+                    }
+                    conf.put("adminRoles", newRoles);
+                    JSONArray modRoles = conf.getJSONArray("modRoles");
+                    newRoles = new JSONArray();
+                    for(int i = 0; i < modRoles.length(); i++) {
+                        String name = modRoles.getString(i);
+                        Optional<Role> any = g.getRoles().stream().filter(r -> r.getName().equals(name)).findAny();
+                        if(any.isPresent()) {
+                            newRoles.put(any.get().getId());
+                        }
+                    }
+                    conf.put("modRoles", newRoles);
+
+                    writeConfig(g.getId(), conf);
                     break;
             }
             return conf;

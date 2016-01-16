@@ -242,7 +242,7 @@ public class Eve extends Module {
     }
 
     private Command setAccess(Command wrapper) {
-        wrapper.acceptCustom((e, cfg) -> e.isPrivate() || availableChats.contains(e.getTextChannel().getId()));
+        wrapper.acceptCustom((e, cfg) -> e.isPrivate() || availableChats.isEmpty() || availableChats.contains(e.getTextChannel().getId()));
         return wrapper;
     }
 }

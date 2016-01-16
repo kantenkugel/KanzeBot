@@ -368,7 +368,7 @@ public class CommandRegistry extends ListenerAdapter {
                                 "\nOr: " + cfg.getPrefix() + args[0] + " " + args[1] + " addRole/removeRole ROLENAME");
                         MessageUtil.reply(event, "Current Admins:\n\tUsers: "
                                 + (cfg.getAdmins().size() == 0 ? "None" : cfg.getAdmins().stream().map(User::getUsername).reduce((s1, s2) -> s1 + ", " + s2).get())
-                                + "\n\tRoles: " + (cfg.getAdminRoles().size() == 0 ? "None" : cfg.getAdminRoles().stream().reduce((s1, s2) -> s1 + ", " + s2).get()));
+                                + "\n\tRoles: " + (cfg.getAdminRoles().size() == 0 ? "None" : cfg.getAdminRoles().stream().map(Role::getName).reduce((s1, s2) -> s1 + ", " + s2).get()));
                     } else {
                         switch(key) {
                             case "adduser":
@@ -412,7 +412,7 @@ public class CommandRegistry extends ListenerAdapter {
                                 "\nOr: " + cfg.getPrefix() + args[0] + " " + args[1] + " addRole/removeRole ROLENAME");
                         MessageUtil.reply(event, "Current Mods:\n\tUsers: "
                                 + (cfg.getMods().size() == 0 ? "None" : cfg.getMods().stream().map(User::getUsername).reduce((s1, s2) -> s1 + ", " + s2).get())
-                                + "\n\tRoles: " + (cfg.getModRoles().size() == 0 ? "None" : cfg.getModRoles().stream().reduce((s1, s2) -> s1 + ", " + s2).get()));
+                                + "\n\tRoles: " + (cfg.getModRoles().size() == 0 ? "None" : cfg.getModRoles().stream().map(Role::getName).reduce((s1, s2) -> s1 + ", " + s2).get()));
                     } else {
                         switch(key) {
                             case "adduser":
