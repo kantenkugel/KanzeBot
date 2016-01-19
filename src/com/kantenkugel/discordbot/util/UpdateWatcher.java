@@ -1,7 +1,7 @@
 package com.kantenkugel.discordbot.util;
 
 import net.dv8tion.jda.JDA;
-import net.dv8tion.jda.entities.TextChannel;
+import net.dv8tion.jda.entities.PrivateChannel;
 
 import java.io.IOException;
 import java.nio.file.*;
@@ -51,7 +51,7 @@ public class UpdateWatcher extends Thread {
 
     }
 
-    public static TextChannel getChannel(JDA api) {
-        return api.getGuildsByName("Java Discord API").get(0).getTextChannels().stream().filter(c -> c.getName().equalsIgnoreCase("testing")).findAny().get();
+    public static PrivateChannel getChannel(JDA api) {
+        return api.getUserById("122758889815932930").getPrivateChannel();
     }
 }

@@ -60,6 +60,15 @@ public abstract class Module {
     public abstract void init(JDA jda, ServerConfig cfg);
 
     /**
+     * Pass-through of EVERY messageReceivedEvent
+     * @param event
+     *      the pass-through event
+     * @return
+     *      true, if further handling via commands should be stopped
+     */
+    public boolean handle(MessageReceivedEvent event) { return false; }
+
+    /**
      * Called when the Guild-owner tries to configure this module.
      * If changes were made to the configuration, you should call cfg.save()
      *

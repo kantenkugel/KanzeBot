@@ -193,8 +193,7 @@ public class ServerConfig {
     public void save() {
         JSONObject config = new JSONObject()
                 .put("prefix", prefix)
-                .put("restrictTexts", restrictTexts)
-                .put("moduleConfigs", moduleConfig);
+                .put("restrictTexts", restrictTexts);
 
         JSONArray arr = new JSONArray();
         for(User admin : admins) {
@@ -229,8 +228,10 @@ public class ServerConfig {
         JSONArray moduleArr = new JSONArray();
         for(Module module : enabledModules.values()) {
             moduleArr.put(module.getName());
+            moduleConfig.put(module.getName(), module.toJson());
         }
         config.put("enabledModules", moduleArr);
+        config.put("moduleConfigs", moduleConfig);
 
         writeConfig(guild.getId(), config);
     }
@@ -375,7 +376,7 @@ public class ServerConfig {
     public static class PMConfig extends ServerConfig {
         public PMConfig(JDA api) {
             super(api, null);
-            Module.getModules().keySet().forEach(super::addModule);
+            super.addModule("eve");
         }
 
         @Override

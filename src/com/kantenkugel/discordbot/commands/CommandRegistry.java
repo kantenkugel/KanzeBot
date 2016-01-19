@@ -261,6 +261,10 @@ public class CommandRegistry extends ListenerAdapter {
                 System.out.println("\tP[" + event.getAuthor().getUsername() + "]: " + event.getMessage().getContent());
         }
 
+        if(cfg.getModules().values().stream().map(m -> m.handle(event)).anyMatch(b -> b)) {
+            return;
+        }
+
         if(event.getMessage().getContent().startsWith(cfg.getPrefix())) {
             String[] args = MessageUtil.getArgs(event, cfg);
             if(commands.containsKey(args[0])) {
