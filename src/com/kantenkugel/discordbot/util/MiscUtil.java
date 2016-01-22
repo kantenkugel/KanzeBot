@@ -1,5 +1,8 @@
 package com.kantenkugel.discordbot.util;
 
+import net.dv8tion.jda.JDA;
+import net.dv8tion.jda.entities.impl.JDAImpl;
+
 import java.time.OffsetDateTime;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -30,5 +33,21 @@ public class MiscUtil {
 
     public static OffsetDateTime getDateTimeFromStamp(String timestamp) {
         return OffsetDateTime.parse(timestamp);
+    }
+
+    public static void await(JDA api, Runnable runnable) {
+        new Thread(() -> {
+            JDAImpl jda = (JDAImpl) api;
+            while(jda.getClient().isConnected()) {
+                try {
+                    Thread.sleep(100);
+                } catch(InterruptedException ignored) {}
+            }
+            runnable.run();
+        }).start();
+    }
+
+    public static void shutdown() {
+        System.exit(UpdateWatcher.NORMAL_EXIT_CODE);
     }
 }

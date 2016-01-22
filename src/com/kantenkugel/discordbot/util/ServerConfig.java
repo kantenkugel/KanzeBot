@@ -374,9 +374,24 @@ public class ServerConfig {
     }
 
     public static class PMConfig extends ServerConfig {
-        public PMConfig(JDA api) {
+        private static final Map<JDA, PMConfig> instances = new HashMap<>();
+        private static final Set<String> enabledModules = new HashSet<>();
+
+        public synchronized static PMConfig getInstance(JDA jda) {
+            if(!instances.containsKey(jda)) {
+                instances.put(jda, new PMConfig(jda));
+            }
+            return instances.get(jda);
+        }
+
+        public synchronized static void registerModule(String name) {
+            enabledModules.add(name);
+            instances.values().forEach(i -> i.addModule(name));
+        }
+
+        private PMConfig(JDA api) {
             super(api, null);
-            super.addModule("eve");
+            enabledModules.forEach(super::addModule);
         }
 
         @Override

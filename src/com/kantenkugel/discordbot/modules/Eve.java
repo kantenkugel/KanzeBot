@@ -213,6 +213,11 @@ public class Eve extends Module {
         return "eve";
     }
 
+    @Override
+    public boolean availableInPms() {
+        return true;
+    }
+
     private static String getSystemList(Set<SolarSystem> systems) {
         StringBuilder b = new StringBuilder();
         for(SolarSystem system : systems) {

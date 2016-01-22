@@ -35,6 +35,9 @@ public abstract class Module {
         try {
             Module module = moduleClass.newInstance();
             modules.putIfAbsent(module.getName().toLowerCase(), moduleClass);
+            if(module.availableInPms()) {
+                ServerConfig.PMConfig.registerModule(module.getName().toLowerCase());
+            }
             System.out.println("Registered module "+module.getName().toLowerCase());
         } catch(InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
@@ -51,7 +54,16 @@ public abstract class Module {
     public abstract String getName();
 
     /**
-     * initializes this module. This is called after {@link #fromJson(JSONObject)}.
+     * Defines if this modules is available in PMs
+     *
+     * @return
+     *      whether or not this should be available in pms
+     */
+    public abstract boolean availableInPms();
+
+    /**
+     * Initializes this module. This is called after {@link #fromJson(JSONObject)}.
+     *
      * @param jda
      *      the JDA object
      * @param cfg

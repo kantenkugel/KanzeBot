@@ -8,6 +8,7 @@ import java.nio.file.*;
 
 public class UpdateWatcher extends Thread {
     private static final int UPDATE_EXIT_CODE = 20;
+    public static final int NORMAL_EXIT_CODE = 21;
     private static final Path folder = Paths.get("C:\\Files\\Dropbox\\IdeaProjects\\DiscordBotJDA\\out\\artifacts\\DiscordBotJDA_jar");
 
     private final JDA api;

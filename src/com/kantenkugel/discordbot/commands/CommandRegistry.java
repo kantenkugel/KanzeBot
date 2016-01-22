@@ -19,16 +19,14 @@ import net.dv8tion.jda.events.guild.GuildJoinEvent;
 import net.dv8tion.jda.events.guild.GuildLeaveEvent;
 import net.dv8tion.jda.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.hooks.ListenerAdapter;
+import net.dv8tion.jda.managers.GuildManager;
 import net.dv8tion.jda.utils.InviteUtil;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import java.time.OffsetDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * Created by Michael Ritter on 06.12.2015.
@@ -52,9 +50,8 @@ public class CommandRegistry extends ListenerAdapter {
 
     private static void loadCommands() {
         commands.clear();
-        commands.put("config", new CommandWrapper((m, cfg) -> {
-            CommandRegistry.config(m, cfg);
-        }).acceptPrivate(false).acceptPriv(Command.Priv.OWNER));
+        commands.put("config", new CommandWrapper(CommandRegistry::config)
+                .acceptPrivate(false).acceptPriv(Command.Priv.OWNER));
         commands.put("addcom", new CommandWrapper((m, cfg) -> {
             String[] args = MessageUtil.getArgs(m, cfg, 3);
             if(args.length == 3) {
@@ -184,8 +181,22 @@ public class CommandRegistry extends ListenerAdapter {
                 MessageUtil.reply(e, "I do not have permissions!");
                 return;
             }
-            //TODO
-            MessageUtil.reply(e, "Not fully implemented!");
+            String[] args = MessageUtil.getArgs(e, cfg);
+            if(args.length < 3) {
+                MessageUtil.reply(e, "Please provide the Ids of users to unban (get them by calling the bans command)");
+            }
+            GuildManager manager = e.getGuild().getManager();
+            Map<String, User> idMap = new HashMap<>();
+            manager.getBans().forEach(u -> idMap.put(u.getId(), u));
+            Set<String> unbanned = new HashSet<>();
+            for(int i = 2; i < args.length; i++) {
+                User user = idMap.get(args[i]);
+                if(user != null) {
+                    manager.unBan(user);
+                    unbanned.add(user.getUsername());
+                }
+            }
+            MessageUtil.reply(e, "Following users got unbanned: " + (unbanned.isEmpty() ? "None! (did you provide Ids?)" : StringUtils.join(unbanned, ", ")));
         }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
         commands.put("bans", new CommandWrapper((e, cfg) -> {
             if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.BAN_MEMBERS)) {
@@ -228,6 +239,7 @@ public class CommandRegistry extends ListenerAdapter {
         commands.put("shutdown", new CommandWrapper((msg, cfg) -> {
             MessageUtil.reply(msg, "OK, Bye!");
             msg.getJDA().shutdown();
+            MiscUtil.await(msg.getJDA(), MiscUtil::shutdown);
         }).acceptCustom((event, cfg) -> MessageUtil.isGlobalAdmin(event.getAuthor())));
         commands.put("info", new CommandWrapper((event, cfg) -> {
             String text = String.format("```\nUser:\n\t%-15s%s\n\t%-15s%s\n\t%-15s%s\n\t%-15s%s\n" +
@@ -256,7 +268,7 @@ public class CommandRegistry extends ListenerAdapter {
                         event.getAuthor().getUsername(), event.getMessage().getContent());
             }
         } else {
-            cfg = new ServerConfig.PMConfig(event.getJDA());
+            cfg = ServerConfig.PMConfig.getInstance(event.getJDA());
             if(event.getAuthor() != event.getJDA().getSelfInfo())
                 System.out.println("\tP[" + event.getAuthor().getUsername() + "]: " + event.getMessage().getContent());
         }

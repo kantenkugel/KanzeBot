@@ -25,6 +25,11 @@ public class Moderation extends Module {
     }
 
     @Override
+    public boolean availableInPms() {
+        return false;
+    }
+
+    @Override
     public void init(JDA jda, ServerConfig cfg) {
         this.servercfg = cfg;
     }
