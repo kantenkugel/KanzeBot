@@ -1,6 +1,5 @@
 package com.kantenkugel.discordbot.modules;
 
-
 import com.kantenkugel.discordbot.commands.Command;
 import com.kantenkugel.discordbot.commands.CommandWrapper;
 import com.kantenkugel.discordbot.util.MessageUtil;
@@ -72,7 +71,8 @@ public class Translator extends Module {
     @Override
     public Map<String, Command> getCommands() {
         Map<String, Command> commands = new HashMap<>();
-        commands.put("translate", new CommandWrapper((e, cfg) -> {
+        commands.put("translate", new CommandWrapper("Translates a given string into another language\n" +
+                "Usage: `translate [-LN] TEXT` where ln is the destination language (optional) and text is the text you want to translate.", (e, cfg) -> {
             String[] args = MessageUtil.getArgs(e, cfg, 3);
             if(args.length > 1) {
                 String language = "en";

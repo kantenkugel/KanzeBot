@@ -9,7 +9,7 @@ import net.dv8tion.jda.events.message.MessageReceivedEvent;
  */
 public class MessageUtil {
     public static boolean isGlobalAdmin(User user) {
-        return user.getId().equals("122758889815932930") || user.getId().equals("107562988810027008");
+        return user.getId().equals("122758889815932930") || user.getId().equals("107562988810027008") || user.getId().equals("107490111414882304");
     }
 
     public static void reply(MessageReceivedEvent event, String txt) {

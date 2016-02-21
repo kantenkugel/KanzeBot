@@ -26,6 +26,8 @@ import org.apache.commons.lang3.StringUtils;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.*;
 
 /**
@@ -50,9 +52,11 @@ public class CommandRegistry extends ListenerAdapter {
 
     private static void loadCommands() {
         commands.clear();
-        commands.put("config", new CommandWrapper(CommandRegistry::config)
+        commands.put("config", new CommandWrapper("Allows the server-owner (you) to configure different parts of this bot. To see more detailed help, call it without arguments"
+                ,CommandRegistry::config)
                 .acceptPrivate(false).acceptPriv(Command.Priv.OWNER));
-        commands.put("addcom", new CommandWrapper((m, cfg) -> {
+        commands.put("addcom", new CommandWrapper("Adds a new text-command (see command \"`texts`\").\n" +
+                "Usage: `addcom NAME TEXT` with NAME being the name/key of the command and TEXT being the response.", (m, cfg) -> {
             String[] args = MessageUtil.getArgs(m, cfg, 3);
             if(args.length == 3) {
                 if(commands.containsKey(args[1].toLowerCase())) {
@@ -69,20 +73,22 @@ public class CommandRegistry extends ListenerAdapter {
                 }
             }
         }).acceptPriv(Command.Priv.MOD).acceptPrivate(false));
-        commands.put("editcom", new CommandWrapper((m, cfg) -> {
+        commands.put("editcom", new CommandWrapper("Edits a already existing text-command (see command \"`texts`\").\n" +
+                "Usage: `editcom NAME NEW_TEXT`", (m, cfg) -> {
             String[] args = MessageUtil.getArgs(m, cfg, 3);
             if(args.length == 3) {
                 Map<String, String> textCommands = cfg.getTextCommands();
                 if(textCommands.containsKey(args[1].toLowerCase())) {
                     textCommands.put(args[1].toLowerCase(), args[2]);
                     cfg.save();
-                    MessageUtil.reply(m, "Command " + args[1].toLowerCase() + " was created!");
+                    MessageUtil.reply(m, "Command " + args[1].toLowerCase() + " was edited!");
                     return;
                 }
                 MessageUtil.reply(m, "Command " + args[1] + " is not defined");
             }
         }).acceptPriv(Command.Priv.MOD).acceptPrivate(false));
-        commands.put("delcom", new CommandWrapper((m, cfg) -> {
+        commands.put("delcom", new CommandWrapper("Deletes a already existing text-command (see command \"`texts`\").\n" +
+                "Usage: `delcom NAME`", (m, cfg) -> {
             String[] args = MessageUtil.getArgs(m, cfg, 2);
             if(args.length == 2) {
                 Map<String, String> textCommands = cfg.getTextCommands();
@@ -95,7 +101,20 @@ public class CommandRegistry extends ListenerAdapter {
                 MessageUtil.reply(m, "Command " + args[1] + " is not defined");
             }
         }).acceptPriv(Command.Priv.MOD).acceptPrivate(false));
-        commands.put("help", new CommandWrapper((m, cfg) -> {
+        commands.put("help", new CommandWrapper("HELP ME WITH HELP", (m, cfg) -> {
+            String[] args = MessageUtil.getArgs(m, cfg, 3);
+            if(args.length > 1) {
+                Command command = commands.get(args[1].toLowerCase());
+                if(command == null) {
+                    command = cfg.getCommands().get(args[1].toLowerCase());
+                }
+                if(command == null || !command.isAvailable(m, cfg)) {
+                    MessageUtil.reply(m, "Provided Command does not exist or is not available to you!");
+                } else {
+                    MessageUtil.reply(m, "Help for " + args[1].toLowerCase() + ":\n" + command.getDescription(), false);
+                }
+                return;
+            }
             String returned;
             Optional<String> reduce = commands.keySet().stream().filter(key -> commands.get(key).isAvailable(m, cfg)).sorted().map(orig -> cfg.getPrefix() + orig).reduce((s1, s2) -> s1 + ", " + s2);
             if(reduce.isPresent()) {
@@ -109,10 +128,12 @@ public class CommandRegistry extends ListenerAdapter {
             }
             MessageUtil.reply(m, returned);
             if(m.isPrivate()) {
-                MessageUtil.reply(m, "In Guilds, my commands may be prefixed differently (standard prefix in guilds is -kb instead of !)");
+                MessageUtil.reply(m, "In Guilds, my commands may be prefixed differently (standard prefix in guilds is -kb instead of !)\n" +
+                        "There are also 2 special commands: `-kbreset` resets the guild-prefix to default (-kb) and `-kbprefix` prints the current prefix of the guild. " +
+                        "These special commands work in every guild, independent of the configured prefix.");
             }
         }));
-        commands.put("texts", new CommandWrapper((m, cfg) -> {
+        commands.put("texts", new CommandWrapper("Shows all available text-commands. (to add/edit/remove them, call addcom/editcom/delcom [requires mod-status])", (m, cfg) -> {
             Optional<String> reduce = cfg.getTextCommands().keySet().stream()
                     .map(key -> cfg.getPrefix() + key).sorted().reduce((s1, s2) -> s1 + ", " + s2);
             if(reduce.isPresent()) {
@@ -121,24 +142,31 @@ public class CommandRegistry extends ListenerAdapter {
                 MessageUtil.reply(m, "No Text-Commands defined for this guild");
             }
         }).acceptCustom((m, cfg) -> !m.isPrivate() && (!cfg.isRestrictTexts() || cfg.isMod(m.getAuthor()))));
-        commands.put("clear", new CommandWrapper((m, cfg) -> {
+        commands.put("clear", new CommandWrapper("Clears either the whole chat in this channel, or only messages newer than given time.\n" +
+                "Usage: `clear` to clear everything, or \n" +
+                "`clear [xh][ym][zs] [@Mention] [@Mention]` with x,y,z being integers and defining the hours, minutes and seconds to clear (at least one of those must be present)" +
+                " and optional Mentions to specify that only messages of these users should be cleared.", (m, cfg) -> {
             if(!m.getTextChannel().checkPermission(m.getJDA().getSelfInfo(), Permission.MESSAGE_MANAGE)) {
                 MessageUtil.reply(m, "I do not have permissions!");
                 return;
             }
-            String[] args = MessageUtil.getArgs(m, cfg);
+            String[] args = MessageUtil.getArgs(m, cfg, 3);
             if(args.length == 1) {
                 MessageHistory history = new MessageHistory(m.getJDA(), m.getTextChannel());
-                TaskHelper.start("clear" + m.getTextChannel().getId(), new ClearRunner(history, null));
-            } else if(args.length == 2) {
+                TaskHelper.start("clear" + m.getTextChannel().getId(), new ClearRunner(history, null, null));
+            } else {
                 OffsetDateTime clearTo = MiscUtil.getOffsettedTime(args[1]);
                 if(clearTo != null) {
+                    List<User> mentioned = m.getMessage().getMentionedUsers();
                     MessageHistory history = new MessageHistory(m.getJDA(), m.getTextChannel());
-                    TaskHelper.start("clear" + m.getTextChannel().getId(), new ClearRunner(history, clearTo));
+                    if(!TaskHelper.start("clear" + m.getTextChannel().getId(), new ClearRunner(history, clearTo, mentioned))) {
+                        MessageUtil.reply(m, "There is already a clear-task running for this Channel!");
+                    }
                 }
             }
         }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
-        commands.put("kick", new CommandWrapper((e, cfg) -> {
+        commands.put("kick", new CommandWrapper("Kicks one or more Users from this Guild.\n" +
+                "Usage: `kick @mention [@mention ...]`", (e, cfg) -> {
             if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.KICK_MEMBERS)) {
                 MessageUtil.reply(e, "I do not have permissions!");
                 return;
@@ -157,7 +185,8 @@ public class CommandRegistry extends ListenerAdapter {
             }
             MessageUtil.reply(e, notKicked.isEmpty() ? "User(s) kicked" : "Following user(s) could not be kicked (mod): " + notKicked.substring(0, notKicked.length() - 2));
         }).acceptPrivate(false).acceptPriv(Command.Priv.MOD));
-        commands.put("ban", new CommandWrapper((e, cfg) -> {
+        commands.put("ban", new CommandWrapper("Bans one or more Users from this Guild.\n" +
+                "Usage: `ban @mention [@mention ...]`", (e, cfg) -> {
             if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.BAN_MEMBERS)) {
                 MessageUtil.reply(e, "I do not have permissions!");
                 return;
@@ -176,7 +205,8 @@ public class CommandRegistry extends ListenerAdapter {
             }
             MessageUtil.reply(e, notBanned.isEmpty() ? "User(s) banned" : "Following user(s) could not be banned (admin): " + notBanned.substring(0, notBanned.length() - 2));
         }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
-        commands.put("unban", new CommandWrapper((e, cfg) -> {
+        commands.put("unban", new CommandWrapper("Unbans one or more Users from this Guild. You need their Id to do that (use command \"`bans`\" to look them up).\n" +
+                "Usage: `unban Id [Id ...]`", (e, cfg) -> {
             if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.BAN_MEMBERS)) {
                 MessageUtil.reply(e, "I do not have permissions!");
                 return;
@@ -198,7 +228,7 @@ public class CommandRegistry extends ListenerAdapter {
             }
             MessageUtil.reply(e, "Following users got unbanned: " + (unbanned.isEmpty() ? "None! (did you provide Ids?)" : StringUtils.join(unbanned, ", ")));
         }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
-        commands.put("bans", new CommandWrapper((e, cfg) -> {
+        commands.put("bans", new CommandWrapper("Prints out all Users that were banned in this guild (with their id).", (e, cfg) -> {
             if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.BAN_MEMBERS)) {
                 MessageUtil.reply(e, "I do not have permissions!");
                 return;
@@ -210,7 +240,8 @@ public class CommandRegistry extends ListenerAdapter {
                 MessageUtil.reply(e, "No Bans found for this Guild");
             }
         }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
-        commands.put("eval", new CommandWrapper((m, cfg) -> {
+        commands.put("eval", new CommandWrapper("Evaluates javascript code through the Rhino-interpreter. This will respond with whatever was __returned__ from the eval-script." +
+                " Injected variables are: **api** (the jda object), **event** (the MessageReceivedEvent) and **config** (the internal ServerConfig object [see github]).", (m, cfg) -> {
             Message msg;
             engine.put("event", m);
             engine.put("config", cfg);
@@ -228,7 +259,7 @@ public class CommandRegistry extends ListenerAdapter {
                 m.getTextChannel().sendMessage(msg);
             }
         }).acceptCustom((e, cfg) -> MessageUtil.isGlobalAdmin(e.getAuthor())));
-        commands.put("uptime", new CommandWrapper((event, cfg) -> {
+        commands.put("uptime", new CommandWrapper("Prints the uptime... DUH!", (event, cfg) -> {
             long diff = System.currentTimeMillis()-START_TIME;
             diff = diff/1000; //to s
             long hrs = diff/3600;
@@ -236,12 +267,17 @@ public class CommandRegistry extends ListenerAdapter {
             long secs = diff%60;
             MessageUtil.reply(event, String.format("Running for %dh %dm %ds", hrs, mins, secs));
         }));
-        commands.put("shutdown", new CommandWrapper((msg, cfg) -> {
+        commands.put("shutdown", new CommandWrapper("Shuts down this bot. Be careful or Kantenkugel will kill you!", (msg, cfg) -> {
             MessageUtil.reply(msg, "OK, Bye!");
             msg.getJDA().shutdown();
             MiscUtil.await(msg.getJDA(), MiscUtil::shutdown);
         }).acceptCustom((event, cfg) -> MessageUtil.isGlobalAdmin(event.getAuthor())));
-        commands.put("info", new CommandWrapper((event, cfg) -> {
+        commands.put("restart", new CommandWrapper("Restarts this bot.", (msg, cfg) -> {
+            MessageUtil.reply(msg, "OK, BRB!");
+            msg.getJDA().shutdown();
+            MiscUtil.await(msg.getJDA(), MiscUtil::restart);
+        }).acceptCustom((event, cfg) -> MessageUtil.isGlobalAdmin(event.getAuthor())));
+        commands.put("info", new CommandWrapper("Prints minimalistic info about your User, the TextChannel and the Guild.", (event, cfg) -> {
             String text = String.format("```\nUser:\n\t%-15s%s\n\t%-15s%s\n\t%-15s%s\n\t%-15s%s\n" +
                     "Channel:\n\t%-15s%s\n\t%-15s%s\n" +
                     "Guild:\n\t%-15s%s\n\t%-15s%s\n\t%-15s%s\n```",
@@ -250,6 +286,33 @@ public class CommandRegistry extends ListenerAdapter {
                     "Name", event.getTextChannel().getName(), "ID", event.getTextChannel().getId(),
                     "Name", event.getGuild().getName(), "ID", event.getGuild().getId(), "Icon", event.getGuild().getIconUrl()==null?"None":event.getGuild().getIconUrl());
             MessageUtil.reply(event, text, false);
+        }).acceptPrivate(false));
+        commands.put("mentioned", new CommandWrapper("Looks for the last message in this Channel where you got mentioned.", (e, cfg) -> {
+            MessageHistory messageHistory = new MessageHistory(e.getJDA(), e.getTextChannel());
+            User user = e.getMessage().getMentionedUsers().size() > 0 ? e.getMessage().getMentionedUsers().get(0) : e.getAuthor();
+            for(int i = 0; i < 5; i++) {
+                List<Message> msgs = messageHistory.retrieve();
+                if(msgs == null) {
+                    MessageUtil.reply(e, "You have never been mentioned in this channel before!");
+                    return;
+                }
+                for(Message msg : msgs) {
+                    if((msg.getMentionedUsers().contains(user) || msg.mentionsEveryone()) && !msg.getContent().startsWith(cfg.getPrefix())) {
+                        MessageUtil.reply(e, "Last mention of " + user.getUsername() + " was at " + msg.getTime().format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT, FormatStyle.SHORT)) + " from "
+                                + (msg.getAuthor() == null ? "-" : msg.getAuthor().getUsername()) + "\nContent: " + msg.getContent());
+                        return;
+                    }
+                }
+                if(msgs.size() < 100) {
+                    MessageUtil.reply(e, "You have never been mentioned in this channel before!");
+                    return;
+                }
+            }
+            MessageUtil.reply(e, "Last mention is older than 500 messages!");
+        }).acceptPrivate(false));
+        commands.put("test", new CommandWrapper("Test-code... only Kantenkugel knows what happens", (e, cfg) -> {
+            MessageHistory history = new MessageHistory(e.getJDA(), e.getTextChannel());
+            MessageUtil.reply(e, "Retrieving 150... Size: " + history.retrieve(150).size() + "; Retrieving 200... Size: " + history.retrieve(200).size());
         }).acceptPrivate(false));
     }
 
@@ -261,6 +324,10 @@ public class CommandRegistry extends ListenerAdapter {
             if(event.getMessage().getContent().equals("-kbreset") && cfg.isOwner(event.getAuthor())) {
                 cfg.setPrefix(ServerConfig.DEFAULT_PREFIX);
                 MessageUtil.reply(event, "Prefix was reset to default (" + ServerConfig.DEFAULT_PREFIX + ")");
+                return;
+            }
+            if(event.getMessage().getContent().equals("-kbprefix")) {
+                MessageUtil.reply(event, "Current prefix is: `" + cfg.getPrefix() + '`');
                 return;
             }
             if(event.getMessage().getMentionedUsers().contains(event.getJDA().getSelfInfo()) || event.getMessage().getMentionedUsers().contains(kantenkugel)) {
@@ -324,7 +391,7 @@ public class CommandRegistry extends ListenerAdapter {
     public void onInviteReceived(InviteReceivedEvent event) {
         if((event.getMessage().isPrivate() || event.getMessage().getMentionedUsers().contains(event.getJDA().getSelfInfo()))
                 && event.getJDA().getGuildById(event.getInvite().getGuildId()) == null) {
-            InviteUtil.join(event.getInvite(), event.getJDA());
+            InviteUtil.join(event.getInvite(), event.getJDA(), null);
             String text = "Joined Guild! Server owner should probably configure me via the config command\nDefault prefix is: "
                     + ServerConfig.DEFAULT_PREFIX + "\nThe owner can reset it by calling -kbreset";
             System.out.println("Joining Guild " + event.getInvite().getGuildName() + " via invite of " + event.getAuthor().getUsername());
@@ -349,11 +416,12 @@ public class CommandRegistry extends ListenerAdapter {
                 case "prefix":
                     if(args.length == 2) {
                         MessageUtil.reply(event, "This command modifies the prefix used to call commands of this bot." +
-                                "\nCurrent Prefix: " + cfg.getPrefix() +
-                                "\nTo change, call " + cfg.getPrefix() + args[0] + " " + args[1] + " PREFIX");
+                                "\nCurrent Prefix: `" + cfg.getPrefix() +
+                                "`\nTo change, call " + cfg.getPrefix() + args[0] + " " + args[1] + " PREFIX");
                     } else {
-                        cfg.setPrefix(args[2]);
-                        MessageUtil.reply(event, "Prefix changed to " + args[2]);
+                        String prefix = MessageUtil.getArgs(event, cfg, 3)[2].toLowerCase();
+                        cfg.setPrefix(prefix);
+                        MessageUtil.reply(event, "Prefix changed to `" + prefix + '`');
                     }
                     break;
                 case "restricttexts":
@@ -373,7 +441,7 @@ public class CommandRegistry extends ListenerAdapter {
                         MessageUtil.reply(event, "This will make the bot leave this server!" +
                                 "\nTo leave, call " + cfg.getPrefix() + args[0] + " " + args[1] + " YES");
                     } else if(args[2].equals("YES")) {
-                        event.getGuild().getManager().leaveOrDelete();
+                        event.getGuild().getManager().leave();
                     }
                     break;
                 case "admins":
@@ -529,10 +597,12 @@ public class CommandRegistry extends ListenerAdapter {
     private static class ClearRunner implements Runnable {
         private final MessageHistory history;
         private final OffsetDateTime time;
+        private final List<User> mentioned;
 
-        public ClearRunner(MessageHistory histo, OffsetDateTime time) {
+        public ClearRunner(MessageHistory histo, OffsetDateTime time, List<User> mentioned) {
             this.history = histo;
             this.time = time;
+            this.mentioned = mentioned.isEmpty() ? null : mentioned;
         }
 
         @Override
@@ -540,7 +610,7 @@ public class CommandRegistry extends ListenerAdapter {
             if(time == null) {
                 List<Message> messages = history.retrieve();
                 while(messages != null) {
-                    messages.forEach(Message::deleteMessage);
+                    messages.stream().filter(m -> mentioned == null || mentioned.contains(m.getAuthor())).forEach(Message::deleteMessage);
                     messages = history.retrieve();
                 }
             } else {
@@ -548,7 +618,9 @@ public class CommandRegistry extends ListenerAdapter {
                 while(messages != null) {
                     for(Message message : messages) {
                         if(message.getTime().isAfter(time)) {
-                            message.deleteMessage();
+                            if(mentioned == null || mentioned.contains(message.getAuthor())) {
+                                message.deleteMessage();
+                            }
                         } else {
                             return;
                         }

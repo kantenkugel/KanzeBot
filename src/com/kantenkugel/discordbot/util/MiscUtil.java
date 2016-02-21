@@ -36,18 +36,25 @@ public class MiscUtil {
     }
 
     public static void await(JDA api, Runnable runnable) {
-        new Thread(() -> {
+        Thread thread = new Thread(() -> {
             JDAImpl jda = (JDAImpl) api;
             while(jda.getClient().isConnected()) {
                 try {
                     Thread.sleep(100);
-                } catch(InterruptedException ignored) {}
+                } catch(InterruptedException ignored) {
+                }
             }
             runnable.run();
-        }).start();
+        });
+        thread.setDaemon(false);
+        thread.start();
     }
 
     public static void shutdown() {
         System.exit(UpdateWatcher.NORMAL_EXIT_CODE);
+    }
+
+    public static void restart() {
+        System.exit(UpdateWatcher.RESTART_CODE);
     }
 }

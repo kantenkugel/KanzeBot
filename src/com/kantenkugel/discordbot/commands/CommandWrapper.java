@@ -12,15 +12,23 @@ import java.util.function.Consumer;
 public class CommandWrapper extends Command {
     private final Consumer<MessageReceivedEvent> function;
     private final BiConsumer<MessageReceivedEvent, ServerConfig> biFunction;
+    private final String description;
 
-    public CommandWrapper(Consumer<MessageReceivedEvent> function) {
+    public CommandWrapper(String desc, Consumer<MessageReceivedEvent> function) {
+        this.description = desc;
         this.function = function;
         this.biFunction = null;
     }
 
-    public CommandWrapper(BiConsumer<MessageReceivedEvent, ServerConfig> biFunction) {
+    public CommandWrapper(String desc, BiConsumer<MessageReceivedEvent, ServerConfig> biFunction) {
+        this.description = desc;
         this.biFunction = biFunction;
         this.function = null;
+    }
+
+    @Override
+    public String getDescription() {
+        return description;
     }
 
     @Override

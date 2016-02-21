@@ -2,6 +2,7 @@ package com.kantenkugel.discordbot;
 
 import com.kantenkugel.discordbot.commands.CommandRegistry;
 import com.kantenkugel.discordbot.modules.Module;
+import com.kantenkugel.discordbot.util.UpdateChecker;
 import com.kantenkugel.discordbot.util.UpdateWatcher;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.JDABuilder;
@@ -16,6 +17,7 @@ import javax.security.auth.login.LoginException;
  */
 public class Main {
     public static JDA api;
+    public static UpdateChecker checker = null;
 
     public static void main(String[] args) {
         if(args.length < 2) {
@@ -31,11 +33,15 @@ public class Main {
         Module.init();
         try {
             JDABuilder jdaBuilder = new JDABuilder(args[0], args[1]).addListener(new CommandRegistry());
-            if(args.length == 4) {
-                boolean success = Boolean.parseBoolean(args[3]);
+            if(args.length == 5) {
+                boolean success = Boolean.parseBoolean(args[4]);
+                if(success) {
+                    checker = UpdateChecker.getInstance();
+                    checker.start();
+                }
                 jdaBuilder.addListener(new UpdatePrintListener(success));
             }
-            api = jdaBuilder.build();
+            api = jdaBuilder.buildAsync();
             CommandRegistry.setJDA(api);
             new UpdateWatcher(api);
         } catch(LoginException e) {
@@ -51,6 +57,9 @@ public class Main {
         @Override
         public void onEvent(Event event) {
             if(event instanceof ReadyEvent) {
+                if(checker != null) {
+                    checker.interrupt();
+                }
                 UpdateWatcher.getChannel(event.getJDA()).sendMessage("Update was " + (success ? "successful" : "unsuccessful") + "!");
                 event.getJDA().removeEventListener(this);
             }

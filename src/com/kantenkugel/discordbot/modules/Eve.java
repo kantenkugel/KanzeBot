@@ -27,7 +27,8 @@ public class Eve extends Module {
     public Map<String, Command> getCommands() {
         Map<String, Command> registry = new HashMap<>();
 
-        registry.put("route", setAccess(new CommandWrapper((msg, cfg) -> {
+        registry.put("route", setAccess(new CommandWrapper("Gets the amount of jumps between 2 Systems.\n" +
+                "Usage: `route SYS1 SYS2` where sys1/sys2 are the system-names (or prefixes of them).", (msg, cfg) -> {
             String[] split = MessageUtil.getArgs(msg, cfg);
             if(split.length > 2) {
                 SolarSystem start = SolarSystem.get(split[1]);
@@ -57,7 +58,8 @@ public class Eve extends Module {
                 }
             }
         })));
-        registry.put("nexthub", setAccess(new CommandWrapper((msg, cfg) -> {
+        registry.put("nexthub", setAccess(new CommandWrapper("Gets the closest trade-hub to the provided System (and the jump count).\n" +
+                "Usage: `nexthub SYS` where sys is the system-name (or a prefix of one).", (msg, cfg) -> {
             String[] split = MessageUtil.getArgs(msg, cfg);
             if(split.length > 1) {
                 SolarSystem start = SolarSystem.get(split[1]);
@@ -84,7 +86,8 @@ public class Eve extends Module {
                 }
             }
         })));
-        registry.put("price", setAccess(new CommandWrapper((msg, cfg) -> {
+        registry.put("price", setAccess(new CommandWrapper("Gets the buy/sell price of provided item in Jita.\n" +
+                "Usage: `price NAME` where name is the item name (or a prefix of it).", (msg, cfg) -> {
             String[] split = MessageUtil.getArgs(msg, cfg, 2);
             if(split.length > 1) {
                 Item i = Item.get(split[1]);
@@ -103,7 +106,8 @@ public class Eve extends Module {
                 }
             }
         })));
-        registry.put("pricein", setAccess(new CommandWrapper((msg, cfg) -> {
+        registry.put("pricein", setAccess(new CommandWrapper("Gets the buy/sell price of provided item in the provided System.\n" +
+                "Usage: `pricein NAME SYS` where name/sys are the item/system name (or a prefix of them).", (msg, cfg) -> {
             String[] split = MessageUtil.getArgs(msg, cfg, 3);
             if(split.length > 2) {
                 boolean unique = true;
@@ -243,7 +247,7 @@ public class Eve extends Module {
     }
 
     private static JSONArray makeGetRequest(String url) {
-        return new JDAImpl().getRequester().getA(url);
+        return new JDAImpl(false).getRequester().getA(url);
     }
 
     private Command setAccess(Command wrapper) {

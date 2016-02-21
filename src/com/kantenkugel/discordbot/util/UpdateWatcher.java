@@ -1,15 +1,17 @@
 package com.kantenkugel.discordbot.util;
 
 import net.dv8tion.jda.JDA;
-import net.dv8tion.jda.entities.PrivateChannel;
+import net.dv8tion.jda.entities.MessageChannel;
 
+import java.io.BufferedReader;
 import java.io.IOException;
-import java.nio.file.*;
+import java.io.InputStreamReader;
 
 public class UpdateWatcher extends Thread {
-    private static final int UPDATE_EXIT_CODE = 20;
+    public static final int UPDATE_EXIT_CODE = 20;
     public static final int NORMAL_EXIT_CODE = 21;
-    private static final Path folder = Paths.get("C:\\Files\\Dropbox\\IdeaProjects\\DiscordBotJDA\\out\\artifacts\\DiscordBotJDA_jar");
+    public static final int RESTART_CODE = 22;
+    public static final int REVERT_CODE = 23;
 
     private final JDA api;
 
@@ -21,38 +23,35 @@ public class UpdateWatcher extends Thread {
 
     @Override
     public void run() {
-        WatchService watcher;
-        WatchKey key;
-        try {
-            watcher = FileSystems.getDefault().newWatchService();
-            folder.register(watcher, StandardWatchEventKinds.ENTRY_MODIFY);
-        } catch(IOException e) {
-            e.printStackTrace();
-            return;
-        }
-
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         while(true) {
             try {
-                key = watcher.take();
-            } catch(InterruptedException e) {
-                System.out.println("File-Watcher is getting shutdown!");
-                break;
-            }
-            for(WatchEvent<?> watchEvent : key.pollEvents()) {
-                WatchEvent.Kind<?> kind = watchEvent.kind();
-                if(kind == StandardWatchEventKinds.OVERFLOW) {
-                    continue;
+                String cmd = reader.readLine();
+                int code = Integer.parseInt(cmd);
+                cmd = null;
+                switch(code) {
+                    case UPDATE_EXIT_CODE:
+                        cmd = "update";
+                    case NORMAL_EXIT_CODE:
+                        if(cmd == null)
+                            cmd = "shutdown";
+                    case RESTART_CODE:
+                        if(cmd == null)
+                            cmd = "restart";
+                        getChannel(api).sendMessage("Wrapper requested to " + cmd + ". Doing so now...");
+                        MiscUtil.await(api, () -> System.exit(code));
+                        api.shutdown();
+                        return;
+                    default:
+                        System.out.println("UpdateWatcher got unknown command-code " + code + "... ignoring");
                 }
-                System.out.println("Version change registered... restarting");
-                getChannel(api).sendMessage("Detected version-change... updating");
-                api.shutdown();
-                System.exit(UPDATE_EXIT_CODE);
+            } catch(IOException | NumberFormatException e) {
+                e.printStackTrace();
             }
         }
-
     }
 
-    public static PrivateChannel getChannel(JDA api) {
+    public static MessageChannel getChannel(JDA api) {
         return api.getUserById("122758889815932930").getPrivateChannel();
     }
 }

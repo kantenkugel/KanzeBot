@@ -40,6 +40,8 @@ public abstract class Command implements BiConsumer<MessageReceivedEvent, Server
         return true;
     }
 
+    public abstract String getDescription();
+
     public Command acceptPrivate(boolean priv) {
         this.requiresPrivate = priv;
         return this;
