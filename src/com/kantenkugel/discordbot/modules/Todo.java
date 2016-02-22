@@ -51,15 +51,13 @@ public class Todo extends Module {
             if(cfgString.startsWith("channel ")) {
                 if(event.getMessage().getMentionedChannels().size() > 0) {
                     TextChannel channel = event.getMessage().getMentionedChannels().get(0);
-                    this.channel = channel.getId();
-                    cfg.save();
+                    changeChannel(channel.getId());
                     MessageUtil.reply(event, "Set todo channel to " + channel.getName());
                     return;
                 }
                 Optional<TextChannel> any = event.getGuild().getTextChannels().parallelStream().filter(c -> c.getName().equals(cfgString.substring(8))).findAny();
                 if(any.isPresent()) {
-                    this.channel = any.get().getId();
-                    cfg.save();
+                    changeChannel(any.get().getId());
                     MessageUtil.reply(event, "Set todo channel to " + any.get().getName());
                 } else {
                     MessageUtil.reply(event, "Channel not found!");
@@ -124,6 +122,21 @@ public class Todo extends Module {
                 }
             }
         }
+    }
+
+    private void changeChannel(String newChannelId) {
+        if(newChannelId.equals(channel)) {
+            return;
+        }
+        if(!todoMessage.isEmpty()) {
+            todoMessage.forEach(this::delete);
+            todoMessage.clear();
+        }
+        this.channel = newChannelId;
+        for(int i=1; i<= todoEntries.size(); i+=10) {
+            updateMessage(i);
+        }
+        cfg.save();
     }
 
     private boolean toggle(int entryId) {
