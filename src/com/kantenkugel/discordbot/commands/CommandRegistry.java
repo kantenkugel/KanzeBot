@@ -20,15 +20,22 @@ import net.dv8tion.jda.events.guild.GuildLeaveEvent;
 import net.dv8tion.jda.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.hooks.ListenerAdapter;
 import net.dv8tion.jda.managers.GuildManager;
+import net.dv8tion.jda.managers.PermissionOverrideManager;
 import net.dv8tion.jda.utils.InviteUtil;
 import org.apache.commons.lang3.StringUtils;
 
+import javax.imageio.ImageIO;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.*;
+import java.util.List;
 
 /**
  * Created by Michael Ritter on 06.12.2015.
@@ -262,10 +269,11 @@ public class CommandRegistry extends ListenerAdapter {
         commands.put("uptime", new CommandWrapper("Prints the uptime... DUH!", (event, cfg) -> {
             long diff = System.currentTimeMillis()-START_TIME;
             diff = diff/1000; //to s
-            long hrs = diff/3600;
+            long days = diff/86400;
+            long hrs = (diff%86400)/3600;
             long mins = (diff%3600)/60;
             long secs = diff%60;
-            MessageUtil.reply(event, String.format("Running for %dh %dm %ds", hrs, mins, secs));
+            MessageUtil.reply(event, String.format("Running for %dd %dh %dm %ds", days, hrs, mins, secs));
         }));
         commands.put("shutdown", new CommandWrapper("Shuts down this bot. Be careful or Kantenkugel will kill you!", (msg, cfg) -> {
             MessageUtil.reply(msg, "OK, Bye!");
@@ -310,10 +318,61 @@ public class CommandRegistry extends ListenerAdapter {
             }
             MessageUtil.reply(e, "Last mention is older than 500 messages!");
         }).acceptPrivate(false));
-        commands.put("test", new CommandWrapper("Test-code... only Kantenkugel knows what happens", (e, cfg) -> {
-            MessageHistory history = new MessageHistory(e.getJDA(), e.getTextChannel());
-            MessageUtil.reply(e, "Retrieving 150... Size: " + history.retrieve(150).size() + "; Retrieving 200... Size: " + history.retrieve(200).size());
+        commands.put("rip", new CommandWrapper("Rest in Pieces", (e, cfg) -> {
+            String[] args = MessageUtil.getArgs(e, cfg, 2);
+            if(args.length == 1) {
+                e.getTextChannel().sendMessage("https://cdn.discordapp.com/attachments/116705171312082950/120787560988540929/rip2.png");
+                return;
+            }
+            String text;
+            if(e.getMessage().getMentionedUsers().size() > 0) {
+                text = e.getMessage().getMentionedUsers().get(0).getUsername();
+            } else {
+                text = args[1];
+            }
+            try {
+                //left edge at 30, right one at 210 => 180 width
+                //y = 200
+                BufferedImage read = ImageIO.read(CommandRegistry.class.getClassLoader().getResourceAsStream("rip.png"));
+                Graphics g = read.getGraphics();
+                g.setColor(Color.black);
+                Font font = new Font("Arial Black", Font.BOLD, 60);
+                FontMetrics m = g.getFontMetrics(font);
+                while(m.stringWidth(text) > 180) {
+                    font = new Font("Arial Black", Font.BOLD, font.getSize() - 1);
+                    m = g.getFontMetrics(font);
+                }
+                g.setFont(font);
+                g.drawString(text, 30 + (180 - m.stringWidth(text)) / 2, 200);
+                g.dispose();
+                File tmpFile = new File("rip_" + e.getResponseNumber() + ".png");
+                ImageIO.write(read, "png", tmpFile);
+                e.getTextChannel().sendFileAsync(tmpFile, null, mess -> tmpFile.delete());
+            } catch(IOException e1) {
+                MessageUtil.reply(e, "I made a Boo Boo!");
+            }
         }).acceptPrivate(false));
+        commands.put("silence", new CommandWrapper("Silences a given user in this channel (denies write-permission).\nUsage: `silence @Mention`", (e, cfg) -> {
+            if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.MANAGE_PERMISSIONS)) {
+                MessageUtil.reply(e, "I do not have permissions to modify other peoples Permissions in this channel!");
+                return;
+            }
+            List<User> mentioned = e.getMessage().getMentionedUsers();
+            if(mentioned.isEmpty()) {
+                MessageUtil.reply(e, "Please mention at least one user");
+                return;
+            }
+            mentioned.stream().filter(user -> !cfg.isMod(user)).forEach(user -> {
+                PermissionOverrideManager man;
+                if(e.getTextChannel().getOverrideForUser(user) != null) {
+                    man = e.getTextChannel().getOverrideForUser(user).getManager();
+                } else {
+                    man =e.getTextChannel().createPermissionOverride(user);
+                }
+                man.deny(Permission.MESSAGE_WRITE).update();
+            });
+            MessageUtil.reply(e, "Let there be Silence!");
+        }).acceptPrivate(false).acceptPriv(Command.Priv.MOD));
     }
 
     @Override
