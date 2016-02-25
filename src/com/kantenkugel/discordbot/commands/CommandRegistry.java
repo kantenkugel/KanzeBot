@@ -28,6 +28,7 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
@@ -325,8 +326,17 @@ public class CommandRegistry extends ListenerAdapter {
                 return;
             }
             String text;
+            BufferedImage avatar = null;
             if(e.getMessage().getMentionedUsers().size() > 0) {
                 text = e.getMessage().getMentionedUsers().get(0).getUsername();
+                try {
+                    InputStream stream = MiscUtil.getDataStream(e.getMessage().getMentionedUsers().get(0).getAvatarUrl());
+                    if(stream != null) {
+                        avatar = ImageIO.read(stream);
+                    }
+                } catch(IOException e1) {
+                    e1.printStackTrace();
+                }
             } else {
                 text = args[1];
             }
@@ -334,19 +344,24 @@ public class CommandRegistry extends ListenerAdapter {
                 //left edge at 30, right one at 210 => 180 width
                 //y = 200
                 BufferedImage read = ImageIO.read(CommandRegistry.class.getClassLoader().getResourceAsStream("rip.png"));
-                Graphics g = read.getGraphics();
+                BufferedImage image = new BufferedImage(read.getWidth(), read.getHeight(), BufferedImage.TYPE_INT_ARGB);
+                Graphics2D g = image.createGraphics();
+                g.drawImage(read, 0, 0, null);
                 g.setColor(Color.black);
-                Font font = new Font("Arial Black", Font.BOLD, 60);
+                Font font = new Font("Arial Black", Font.BOLD, 50);
                 FontMetrics m = g.getFontMetrics(font);
                 while(m.stringWidth(text) > 180) {
                     font = new Font("Arial Black", Font.BOLD, font.getSize() - 1);
                     m = g.getFontMetrics(font);
                 }
                 g.setFont(font);
-                g.drawString(text, 30 + (180 - m.stringWidth(text)) / 2, 200);
+                g.drawString(text, 30 + (180 - m.stringWidth(text)) / 2, 190);
+                if(avatar != null) {
+                    g.drawImage(avatar, 90, 200, 60, 60, null);
+                }
                 g.dispose();
                 File tmpFile = new File("rip_" + e.getResponseNumber() + ".png");
-                ImageIO.write(read, "png", tmpFile);
+                ImageIO.write(image, "png", tmpFile);
                 e.getTextChannel().sendFileAsync(tmpFile, null, mess -> tmpFile.delete());
             } catch(IOException e1) {
                 MessageUtil.reply(e, "I made a Boo Boo!");

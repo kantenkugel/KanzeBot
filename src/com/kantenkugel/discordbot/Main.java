@@ -16,6 +16,7 @@ import javax.security.auth.login.LoginException;
  * Created by Michael Ritter on 05.12.2015.
  */
 public class Main {
+    public static int VERSION;
     public static JDA api;
     public static UpdateChecker checker = null;
 
@@ -27,6 +28,12 @@ public class Main {
 
         if(args.length > 2) {
             CommandRegistry.START_TIME = Long.parseLong(args[2]);
+        }
+
+        if(args.length > 3) {
+            VERSION = Integer.parseInt(args[3]);
+        } else {
+            VERSION = 0;
         }
 
         CommandRegistry.init();

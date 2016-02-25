@@ -1,8 +1,13 @@
 package com.kantenkugel.discordbot.util;
 
+import com.kantenkugel.discordbot.Main;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.entities.impl.JDAImpl;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.net.URLConnection;
 import java.time.OffsetDateTime;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -27,6 +32,19 @@ public class MiscUtil {
                 dateTime = dateTime.minusSeconds(Long.parseLong(matcher.group("secs")));
             }
             return dateTime;
+        }
+        return null;
+    }
+
+    public static InputStream getDataStream(String url) {
+        try {
+            URL u = new URL(url);
+            URLConnection urlConnection = u.openConnection();
+            urlConnection.setRequestProperty("user-agent", "KanzeBot DiscordBot (https://github.com/Kantenkugel/KanzeBot, " + Main.VERSION + ')');
+            urlConnection.setRequestProperty("authorization", Main.api.getAuthToken());
+            return urlConnection.getInputStream();
+        } catch(IOException e) {
+            e.printStackTrace();
         }
         return null;
     }
