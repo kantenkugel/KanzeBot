@@ -9,10 +9,7 @@ import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.MessageBuilder;
 import net.dv8tion.jda.MessageHistory;
 import net.dv8tion.jda.Permission;
-import net.dv8tion.jda.entities.Guild;
-import net.dv8tion.jda.entities.Message;
-import net.dv8tion.jda.entities.Role;
-import net.dv8tion.jda.entities.User;
+import net.dv8tion.jda.entities.*;
 import net.dv8tion.jda.events.InviteReceivedEvent;
 import net.dv8tion.jda.events.ReadyEvent;
 import net.dv8tion.jda.events.guild.GuildJoinEvent;
@@ -51,6 +48,8 @@ public class CommandRegistry extends ListenerAdapter {
 
     public static void init() {
         loadCommands();
+        engine.put("commands", commands);
+        engine.put("Command", CustomCommand.class);
     }
 
     public static void setJDA(JDA jda) {
@@ -248,7 +247,8 @@ public class CommandRegistry extends ListenerAdapter {
             }
         }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
         commands.put("eval", new CommandWrapper("Evaluates javascript code through the Rhino-interpreter. This will respond with whatever was __returned__ from the eval-script." +
-                " Injected variables are: **api** (the jda object), **event** (the MessageReceivedEvent) and **config** (the internal ServerConfig object [see github]).", (m, cfg) -> {
+                " Injected variables are: **api** (the jda object), **event** (the MessageReceivedEvent), **config** (the internal ServerConfig object [see github])" +
+                " and **commands** (the commands-map; use `new Command.static(String help, BiConsumer<MessageReceivedEvent, ServerConfig>)` to create new commands).", (m, cfg) -> {
             Message msg;
             engine.put("event", m);
             engine.put("config", cfg);
@@ -352,7 +352,7 @@ public class CommandRegistry extends ListenerAdapter {
                 MessageUtil.reply(e, "I made a Boo Boo!");
             }
         }).acceptPrivate(false));
-        commands.put("silence", new CommandWrapper("Silences a given user in this channel (denies write-permission).\nUsage: `silence @Mention`", (e, cfg) -> {
+        commands.put("silence", new CommandWrapper("Silences a given user in this channel (denies write-permission).\nUsage: `silence @Mention [@Mention]`", (e, cfg) -> {
             if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.MANAGE_PERMISSIONS)) {
                 MessageUtil.reply(e, "I do not have permissions to modify other peoples Permissions in this channel!");
                 return;
@@ -371,7 +371,30 @@ public class CommandRegistry extends ListenerAdapter {
                 }
                 man.deny(Permission.MESSAGE_WRITE).update();
             });
-            MessageUtil.reply(e, "Let there be Silence!");
+            MessageUtil.reply(e, "Let there be Silence! :speak_no_evil:", false);
+        }).acceptPrivate(false).acceptPriv(Command.Priv.MOD));
+        commands.put("unsilence", new CommandWrapper("Unsilences a previously silenced user in this channel (reallows write-ermission).\nUsage: `unsilence @Mention [@Mention]`", (e, cfg) -> {
+            if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.MANAGE_PERMISSIONS)) {
+                MessageUtil.reply(e, "I do not have permissions to modify other peoples Permissions in this channel!");
+                return;
+            }
+            List<User> mentioned = e.getMessage().getMentionedUsers();
+            if(mentioned.isEmpty()) {
+                MessageUtil.reply(e, "Please mention at least one user");
+                return;
+            }
+            mentioned.stream().filter(user -> !cfg.isMod(user)).forEach(user -> {
+                PermissionOverride override = e.getTextChannel().getOverrideForUser(user);
+                if(override != null) {
+                    PermissionOverrideManager man = override.getManager();
+                    if(override.getAllowedRaw() == 0 && override.getDenied().size() == 1 && override.getDenied().get(0) == Permission.MESSAGE_WRITE) {
+                        man.delete();
+                    } else {
+                        man.reset(Permission.MESSAGE_WRITE).update();
+                    }
+                }
+            });
+            MessageUtil.reply(e, "HAH! Just joking... you can talk again... :speech_balloon:", false);
         }).acceptPrivate(false).acceptPriv(Command.Priv.MOD));
     }
 
