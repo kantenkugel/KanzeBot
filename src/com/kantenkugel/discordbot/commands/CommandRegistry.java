@@ -12,6 +12,7 @@ import net.dv8tion.jda.Permission;
 import net.dv8tion.jda.entities.*;
 import net.dv8tion.jda.events.InviteReceivedEvent;
 import net.dv8tion.jda.events.ReadyEvent;
+import net.dv8tion.jda.events.ReconnectedEvent;
 import net.dv8tion.jda.events.guild.GuildJoinEvent;
 import net.dv8tion.jda.events.guild.GuildLeaveEvent;
 import net.dv8tion.jda.events.message.MessageReceivedEvent;
@@ -24,6 +25,7 @@ import org.apache.commons.lang3.StringUtils;
 import javax.imageio.ImageIO;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -50,7 +52,13 @@ public class CommandRegistry extends ListenerAdapter {
     public static void init() {
         loadCommands();
         engine.put("commands", commands);
+        engine.put("rng", new Random());
         engine.put("Command", CustomCommand.class);
+        try {
+            engine.eval("var imports = new JavaImporter(java.io, java.lang, java.util);");
+        } catch(ScriptException e) {
+            e.printStackTrace();
+        }
     }
 
     public static void setJDA(JDA jda) {
@@ -248,15 +256,15 @@ public class CommandRegistry extends ListenerAdapter {
             }
         }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
         commands.put("eval", new CommandWrapper("Evaluates javascript code through the Rhino-interpreter. This will respond with whatever was __returned__ from the eval-script." +
-                " Injected variables are: **api** (the jda object), **event** (the MessageReceivedEvent), **config** (the internal ServerConfig object [see github])" +
+                " Injected variables are: **api** (the jda object), **event** (the MessageReceivedEvent), **rng** (a global Random object), **config** (the internal ServerConfig object [see github])" +
                 " and **commands** (the commands-map; use `new Command.static(String help, BiConsumer<MessageReceivedEvent, ServerConfig>)` to create new commands).", (m, cfg) -> {
             Message msg;
             engine.put("event", m);
             engine.put("config", cfg);
             try {
-                Object out = engine.eval("(function(){"
+                Object out = engine.eval("(function(){ with(imports) {"
                         + m.getMessage().getContent().substring(cfg.getPrefix().length() + 5)
-                        + "})();");
+                        + "} })();");
                 msg = new MessageBuilder().appendString(out == null ? "Done!" : out.toString(), MessageBuilder.Formatting.BLOCK).build();
             } catch(Exception e) {
                 msg = new MessageBuilder().appendString(e.getMessage(), MessageBuilder.Formatting.BLOCK).build();
@@ -322,7 +330,7 @@ public class CommandRegistry extends ListenerAdapter {
         commands.put("rip", new CommandWrapper("Rest in Pieces", (e, cfg) -> {
             String[] args = MessageUtil.getArgs(e, cfg, 2);
             if(args.length == 1) {
-                e.getTextChannel().sendMessage("https://cdn.discordapp.com/attachments/116705171312082950/120787560988540929/rip2.png");
+                e.getChannel().sendMessage("https://cdn.discordapp.com/attachments/116705171312082950/120787560988540929/rip2.png");
                 return;
             }
             String text;
@@ -362,11 +370,11 @@ public class CommandRegistry extends ListenerAdapter {
                 g.dispose();
                 File tmpFile = new File("rip_" + e.getResponseNumber() + ".png");
                 ImageIO.write(image, "png", tmpFile);
-                e.getTextChannel().sendFileAsync(tmpFile, null, mess -> tmpFile.delete());
+                e.getChannel().sendFileAsync(tmpFile, null, mess -> tmpFile.delete());
             } catch(IOException e1) {
                 MessageUtil.reply(e, "I made a Boo Boo!");
             }
-        }).acceptPrivate(false));
+        }));
         commands.put("silence", new CommandWrapper("Silences a given user in this channel (denies write-permission).\nUsage: `silence @Mention [@Mention]`", (e, cfg) -> {
             if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.MANAGE_PERMISSIONS)) {
                 MessageUtil.reply(e, "I do not have permissions to modify other peoples Permissions in this channel!");
@@ -467,11 +475,21 @@ public class CommandRegistry extends ListenerAdapter {
 
     @Override
     public void onReady(ReadyEvent event) {
-        event.getJDA().getAccountManager().setGame("JDA");
-        for(Guild guild : event.getJDA().getGuilds()) {
-            serverConfigs.put(guild.getId(), new ServerConfig(event.getJDA(), guild));
+        initVars(event.getJDA());
+    }
+
+    @Override
+    public void onReconnect(ReconnectedEvent event) {
+        initVars(event.getJDA());
+    }
+
+    private void initVars(JDA jda) {
+        jda.getAccountManager().setGame("JDA");
+        serverConfigs.clear();
+        for(Guild guild : jda.getGuilds()) {
+            serverConfigs.put(guild.getId(), new ServerConfig(jda, guild));
         }
-        kantenkugel = event.getJDA().getUserById("122758889815932930");
+        kantenkugel = jda.getUserById("122758889815932930");
     }
 
     @Override
