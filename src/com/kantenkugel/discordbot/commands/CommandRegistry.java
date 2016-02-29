@@ -459,13 +459,17 @@ public class CommandRegistry extends ListenerAdapter {
             String[] args = MessageUtil.getArgs(event, cfg);
             if(commands.containsKey(args[0])) {
                 if(commands.get(args[0]).isAvailable(event, cfg)) {
-                    commandLog.info(event.getAuthor().getUsername() + ": " + event.getMessage().getContent().substring(cfg.getPrefix().length()));
+                    commandLog.info(String.format("[%s][%s] %s:%s\n", event.isPrivate() ? "PM" : event.getGuild().getName(),
+                            event.isPrivate() ? event.getAuthor().getUsername() : event.getTextChannel().getName(),
+                            event.getAuthor().getUsername(), event.getMessage().getContent().substring(cfg.getPrefix().length())));
                     commands.get(args[0]).accept(event, cfg);
                 }
 
             } else if(cfg.getCommands().containsKey(args[0])) {
                 if(cfg.getCommands().get(args[0]).isAvailable(event, cfg)) {
-                    commandLog.info(event.getAuthor().getUsername() + ": " + event.getMessage().getContent().substring(cfg.getPrefix().length()));
+                    commandLog.info(String.format("[%s][%s] %s:%s\n", event.isPrivate() ? "PM" : event.getGuild().getName(),
+                            event.isPrivate() ? event.getAuthor().getUsername() : event.getTextChannel().getName(),
+                            event.getAuthor().getUsername(), event.getMessage().getContent().substring(cfg.getPrefix().length())));
                     cfg.getCommands().get(args[0]).accept(event, cfg);
                 }
             } else if(!event.isPrivate()) {
