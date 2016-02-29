@@ -10,6 +10,7 @@ import net.dv8tion.jda.events.Event;
 import net.dv8tion.jda.events.ReadyEvent;
 import net.dv8tion.jda.hooks.EventListener;
 import net.dv8tion.jda.utils.SimpleLog;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.security.auth.login.LoginException;
 import java.io.File;
@@ -20,13 +21,23 @@ import java.io.IOException;
  */
 public class Main {
     public static int VERSION;
+    public static String CHANGES;
     public static JDA api;
     public static UpdateChecker checker = null;
 
     public static final SimpleLog LOG = SimpleLog.getLog("KanzeBot");
 
+    /*
+    Args:
+        0  email,
+        1  password,
+        2  system-time of wrapper-start (for uptime),
+        3  success-indicator (true/false/"-")
+        4  version-number
+        5+ MULTIPLE/NONE strings describing the changelog of this version
+    */
     public static void main(String[] args) {
-        if(args.length < 2) {
+        if(args.length < 5) {
             System.out.println("Missing arguments!");
             return;
         }
@@ -37,22 +48,21 @@ public class Main {
             e.printStackTrace();
         }
 
-        if(args.length > 2) {
-            CommandRegistry.START_TIME = Long.parseLong(args[2]);
-        }
+        CommandRegistry.START_TIME = Long.parseLong(args[2]);
+        VERSION = Integer.parseInt(args[4]);
 
-        if(args.length > 3) {
-            VERSION = Integer.parseInt(args[3]);
+        if(args.length > 5) {
+            CHANGES = StringUtils.join(args, '\n', 5, args.length);
         } else {
-            VERSION = 0;
+            CHANGES = null;
         }
 
         CommandRegistry.init();
         Module.init();
         try {
             JDABuilder jdaBuilder = new JDABuilder(args[0], args[1]).addListener(new CommandRegistry());
-            if(args.length == 5) {
-                boolean success = Boolean.parseBoolean(args[4]);
+            if(!args[3].equals("-")) {
+                boolean success = Boolean.parseBoolean(args[3]);
                 if(success) {
                     checker = UpdateChecker.getInstance();
                     checker.start();
@@ -63,7 +73,8 @@ public class Main {
             CommandRegistry.setJDA(api);
             new UpdateWatcher(api);
         } catch(LoginException e) {
-            e.printStackTrace();
+            LOG.fatal("Login informations were incorrect!");
+            System.err.flush();
         }
     }
 
@@ -78,7 +89,10 @@ public class Main {
                 if(checker != null) {
                     checker.interrupt();
                 }
-                UpdateWatcher.getChannel(event.getJDA()).sendMessage("Update was " + (success ? "successful" : "unsuccessful") + "!");
+                UpdateWatcher.getChannel(event.getJDA()).sendMessage("Update was " + (success ? "" : "**NOT**") + "successful!\nCurrent revision: " + VERSION);
+                if(CHANGES != null) {
+                    UpdateWatcher.getChannel(event.getJDA()).sendMessage("Changes for this revision:\n" + CHANGES);
+                }
                 event.getJDA().removeEventListener(this);
             }
         }
