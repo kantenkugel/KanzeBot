@@ -12,6 +12,8 @@ import net.dv8tion.jda.hooks.EventListener;
 import net.dv8tion.jda.utils.SimpleLog;
 
 import javax.security.auth.login.LoginException;
+import java.io.File;
+import java.io.IOException;
 
 /**
  * Created by Michael Ritter on 05.12.2015.
@@ -27,6 +29,12 @@ public class Main {
         if(args.length < 2) {
             System.out.println("Missing arguments!");
             return;
+        }
+
+        try {
+            SimpleLog.addFileLogs(new File("logs/main.txt"), new File("logs/err.txt"));
+        } catch(IOException e) {
+            e.printStackTrace();
         }
 
         if(args.length > 2) {
