@@ -9,6 +9,7 @@ import net.dv8tion.jda.JDABuilder;
 import net.dv8tion.jda.events.Event;
 import net.dv8tion.jda.events.ReadyEvent;
 import net.dv8tion.jda.hooks.EventListener;
+import net.dv8tion.jda.utils.SimpleLog;
 
 import javax.security.auth.login.LoginException;
 
@@ -19,6 +20,8 @@ public class Main {
     public static int VERSION;
     public static JDA api;
     public static UpdateChecker checker = null;
+
+    public static final SimpleLog LOG = SimpleLog.getLog("KanzeBot");
 
     public static void main(String[] args) {
         if(args.length < 2) {

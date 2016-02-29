@@ -1,5 +1,6 @@
 package com.kantenkugel.discordbot.commands;
 
+import com.kantenkugel.discordbot.Main;
 import com.kantenkugel.discordbot.modules.Module;
 import com.kantenkugel.discordbot.util.MessageUtil;
 import com.kantenkugel.discordbot.util.MiscUtil;
@@ -20,6 +21,7 @@ import net.dv8tion.jda.hooks.ListenerAdapter;
 import net.dv8tion.jda.managers.GuildManager;
 import net.dv8tion.jda.managers.PermissionOverrideManager;
 import net.dv8tion.jda.utils.InviteUtil;
+import net.dv8tion.jda.utils.SimpleLog;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.imageio.ImageIO;
@@ -44,6 +46,10 @@ public class CommandRegistry extends ListenerAdapter {
     public static long START_TIME = System.currentTimeMillis();
     private static final Map<String, Command> commands = new HashMap<>();
     private static final Map<String, ServerConfig> serverConfigs = new HashMap<>();
+
+    private static final SimpleLog pmLog = SimpleLog.getLog("PM");
+    private static final SimpleLog mentionLog = SimpleLog.getLog("Mention");
+    private static final SimpleLog commandLog = SimpleLog.getLog("Command");
 
     private static User kantenkugel;
 
@@ -436,13 +442,13 @@ public class CommandRegistry extends ListenerAdapter {
                 return;
             }
             if(event.getMessage().getMentionedUsers().contains(event.getJDA().getSelfInfo()) || event.getMessage().getMentionedUsers().contains(kantenkugel)) {
-                System.out.printf("\t@[%s][%s] %s:%s\n", event.getGuild().getName(), event.getTextChannel().getName(),
-                        event.getAuthor().getUsername(), event.getMessage().getContent());
+                mentionLog.info(String.format("[%s][%s] %s:%s\n", event.getGuild().getName(), event.getTextChannel().getName(),
+                        event.getAuthor().getUsername(), event.getMessage().getContent()));
             }
         } else {
             cfg = ServerConfig.PMConfig.getInstance(event.getJDA());
             if(event.getAuthor() != event.getJDA().getSelfInfo())
-                System.out.println("\tP[" + event.getAuthor().getUsername() + "]: " + event.getMessage().getContent());
+                pmLog.info(event.getAuthor().getUsername() + ": " + event.getMessage().getContent());
         }
 
         if(cfg.getModules().values().stream().map(m -> m.handle(event)).anyMatch(b -> b)) {
@@ -453,11 +459,13 @@ public class CommandRegistry extends ListenerAdapter {
             String[] args = MessageUtil.getArgs(event, cfg);
             if(commands.containsKey(args[0])) {
                 if(commands.get(args[0]).isAvailable(event, cfg)) {
+                    commandLog.info(event.getAuthor().getUsername() + ": " + event.getMessage().getContent().substring(cfg.getPrefix().length()));
                     commands.get(args[0]).accept(event, cfg);
                 }
 
             } else if(cfg.getCommands().containsKey(args[0])) {
                 if(cfg.getCommands().get(args[0]).isAvailable(event, cfg)) {
+                    commandLog.info(event.getAuthor().getUsername() + ": " + event.getMessage().getContent().substring(cfg.getPrefix().length()));
                     cfg.getCommands().get(args[0]).accept(event, cfg);
                 }
             } else if(!event.isPrivate()) {
@@ -494,11 +502,13 @@ public class CommandRegistry extends ListenerAdapter {
 
     @Override
     public void onGuildJoin(GuildJoinEvent event) {
+        Main.LOG.info("Joined Guild " + event.getGuild().getName());
         serverConfigs.put(event.getGuild().getId(), new ServerConfig(event.getJDA(), event.getGuild()));
     }
 
     @Override
     public void onGuildLeave(GuildLeaveEvent event) {
+        Main.LOG.info("Left Guild " + event.getGuild().getName());
         serverConfigs.remove(event.getGuild().getId());
     }
 
@@ -509,7 +519,7 @@ public class CommandRegistry extends ListenerAdapter {
             InviteUtil.join(event.getInvite(), event.getJDA(), null);
             String text = "Joined Guild! Server owner should probably configure me via the config command\nDefault prefix is: "
                     + ServerConfig.DEFAULT_PREFIX + "\nThe owner can reset it by calling -kbreset";
-            System.out.println("Joining Guild " + event.getInvite().getGuildName() + " via invite of " + event.getAuthor().getUsername());
+            Main.LOG.info("Joining Guild " + event.getInvite().getGuildName() + " via invite of " + event.getAuthor().getUsername());
             if(event.getMessage().isPrivate()) {
                 event.getJDA().getPrivateChannelById(event.getMessage().getChannelId()).sendMessage(text);
             } else {

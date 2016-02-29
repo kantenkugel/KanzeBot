@@ -8,6 +8,7 @@ import com.kantenkugel.discordbot.util.ServerConfig;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.entities.TextChannel;
 import net.dv8tion.jda.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.utils.SimpleLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -23,6 +24,8 @@ public class AutoRespond extends Module {
     private final Map<String, Pair<Set<String>, String>> responses = new HashMap<>(); //name ->
     private final Set<String> channels = new HashSet<>();
     private ServerConfig servercfg;
+
+    private static final SimpleLog respondLog = SimpleLog.getLog("Responder");
 
     @Override
     public String getName() {
@@ -102,6 +105,8 @@ public class AutoRespond extends Module {
         String content = event.getMessage().getContent().toLowerCase();
         Optional<String> response = responses.values().parallelStream().filter(r -> r.getLeft().parallelStream().allMatch((content::contains))).map(Pair::getRight).findAny();
         if(response.isPresent()) {
+            respondLog.info(String.format("[%s][%s] %s: %s\n\t->%s", event.getGuild().getName(), event.getTextChannel().getName(),
+                    event.getAuthor().getUsername(), event.getMessage().getContent(), response.get()));
             MessageUtil.reply(event, response.get());
         }
         return false;
