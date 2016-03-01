@@ -1,6 +1,7 @@
 package com.kantenkugel.discordbot.util;
 
 import com.kantenkugel.discordbot.Main;
+import com.kantenkugel.discordbot.commands.CommandRegistry;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.entities.impl.JDAImpl;
 
@@ -51,6 +52,16 @@ public class MiscUtil {
 
     public static OffsetDateTime getDateTimeFromStamp(String timestamp) {
         return OffsetDateTime.parse(timestamp);
+    }
+
+    public static String getUptime() {
+        long diff = System.currentTimeMillis()- CommandRegistry.START_TIME;
+        diff = diff/1000; //to s
+        long days = diff/86400;
+        long hrs = (diff%86400)/3600;
+        long mins = (diff%3600)/60;
+        long secs = diff%60;
+        return String.format("%dd %dh %dm %ds", days, hrs, mins, secs);
     }
 
     public static void await(JDA api, Runnable runnable) {

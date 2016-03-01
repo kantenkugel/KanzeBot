@@ -52,6 +52,8 @@ public class CommandRegistry extends ListenerAdapter {
     private static final SimpleLog commandLog = SimpleLog.getLog("Command");
 
     private static User kantenkugel;
+    private static long msgCount = 0;
+    private static int cmdCount = 0;
 
     private static final ScriptEngine engine = new ScriptEngineManager().getEngineByName("Nashorn");
 
@@ -282,13 +284,7 @@ public class CommandRegistry extends ListenerAdapter {
             }
         }).acceptCustom((e, cfg) -> MessageUtil.isGlobalAdmin(e.getAuthor())));
         commands.put("uptime", new CommandWrapper("Prints the uptime... DUH!", (event, cfg) -> {
-            long diff = System.currentTimeMillis()-START_TIME;
-            diff = diff/1000; //to s
-            long days = diff/86400;
-            long hrs = (diff%86400)/3600;
-            long mins = (diff%3600)/60;
-            long secs = diff%60;
-            MessageUtil.reply(event, String.format("Running for %dd %dh %dm %ds", days, hrs, mins, secs));
+            MessageUtil.reply(event, "Running for " + MiscUtil.getUptime());
         }));
         commands.put("shutdown", new CommandWrapper("Shuts down this bot. Be careful or Kantenkugel will kill you!", (msg, cfg) -> {
             MessageUtil.reply(msg, "OK, Bye!");
@@ -425,10 +421,23 @@ public class CommandRegistry extends ListenerAdapter {
             });
             MessageUtil.reply(e, "HAH! Just joking... you can talk again... :speech_balloon:", false);
         }).acceptPrivate(false).acceptPriv(Command.Priv.MOD));
+        commands.put("stats", new CommandWrapper("Displays some stats about KanzeBot", (e, cfg) -> {
+            String stats = String.format("%-15s%s\n%-15s%s\n%-15s%s\n%-15s%s\n%-15s%s\n%-15s%s\n\n%s\n%s",
+                    "Guilds:", e.getJDA().getGuilds().size(),
+                    "Users (Unique):", e.getJDA().getGuilds().stream().map(g -> g.getUsers().size()).reduce(0, (s1, s2) -> s1 + s2) + " (" + e.getJDA().getUsers().size() + ')',
+                    "Uptime:", MiscUtil.getUptime(),
+                    "Messages seen:", msgCount,
+                    "Commands seen:", cmdCount,
+                    "Version rev:", Main.VERSION,
+                    "Changes of current version:", Main.CHANGES);
+            e.getChannel().sendMessage(new MessageBuilder().appendString("Stats for KanzeBot:\n")
+                    .appendCodeBlock(stats, "").build());
+        }));
     }
 
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
+        msgCount++;
         ServerConfig cfg;
         if(!event.isPrivate()) {
             cfg = serverConfigs.get(event.getTextChannel().getGuild().getId());
@@ -442,7 +451,7 @@ public class CommandRegistry extends ListenerAdapter {
                 return;
             }
             if(event.getMessage().getMentionedUsers().contains(event.getJDA().getSelfInfo()) || event.getMessage().getMentionedUsers().contains(kantenkugel)) {
-                mentionLog.info(String.format("[%s][%s] %s:%s\n", event.getGuild().getName(), event.getTextChannel().getName(),
+                mentionLog.info(String.format("[%s][%s] %s:%s", event.getGuild().getName(), event.getTextChannel().getName(),
                         event.getAuthor().getUsername(), event.getMessage().getContent()));
             }
         } else {
@@ -459,7 +468,8 @@ public class CommandRegistry extends ListenerAdapter {
             String[] args = MessageUtil.getArgs(event, cfg);
             if(commands.containsKey(args[0])) {
                 if(commands.get(args[0]).isAvailable(event, cfg)) {
-                    commandLog.info(String.format("[%s][%s] %s:%s\n", event.isPrivate() ? "PM" : event.getGuild().getName(),
+                    cmdCount++;
+                    commandLog.info(String.format("[%s][%s] %s: %s", event.isPrivate() ? "PM" : event.getGuild().getName(),
                             event.isPrivate() ? event.getAuthor().getUsername() : event.getTextChannel().getName(),
                             event.getAuthor().getUsername(), event.getMessage().getContent().substring(cfg.getPrefix().length())));
                     commands.get(args[0]).accept(event, cfg);
@@ -467,7 +477,8 @@ public class CommandRegistry extends ListenerAdapter {
 
             } else if(cfg.getCommands().containsKey(args[0])) {
                 if(cfg.getCommands().get(args[0]).isAvailable(event, cfg)) {
-                    commandLog.info(String.format("[%s][%s] %s:%s\n", event.isPrivate() ? "PM" : event.getGuild().getName(),
+                    cmdCount++;
+                    commandLog.info(String.format("[%s][%s] %s: %s", event.isPrivate() ? "PM" : event.getGuild().getName(),
                             event.isPrivate() ? event.getAuthor().getUsername() : event.getTextChannel().getName(),
                             event.getAuthor().getUsername(), event.getMessage().getContent().substring(cfg.getPrefix().length())));
                     cfg.getCommands().get(args[0]).accept(event, cfg);
