@@ -86,4 +86,8 @@ public class MiscUtil {
     public static void restart() {
         System.exit(UpdateWatcher.RESTART_CODE);
     }
+
+    public static void update() {
+        System.exit(UpdateWatcher.UPDATE_EXIT_CODE);
+    }
 }

@@ -288,13 +288,18 @@ public class CommandRegistry extends ListenerAdapter {
         }));
         commands.put("shutdown", new CommandWrapper("Shuts down this bot. Be careful or Kantenkugel will kill you!", (msg, cfg) -> {
             MessageUtil.reply(msg, "OK, Bye!");
-            msg.getJDA().shutdown();
             MiscUtil.await(msg.getJDA(), MiscUtil::shutdown);
+            msg.getJDA().shutdown();
         }).acceptCustom((event, cfg) -> MessageUtil.isGlobalAdmin(event.getAuthor())));
         commands.put("restart", new CommandWrapper("Restarts this bot.", (msg, cfg) -> {
             MessageUtil.reply(msg, "OK, BRB!");
-            msg.getJDA().shutdown();
             MiscUtil.await(msg.getJDA(), MiscUtil::restart);
+            msg.getJDA().shutdown();
+        }).acceptCustom((event, cfg) -> MessageUtil.isGlobalAdmin(event.getAuthor())));
+        commands.put("update", new CommandWrapper("Updates this bot.", (msg, cfg) -> {
+            MessageUtil.reply(msg, "OK, BRB!");
+            MiscUtil.await(msg.getJDA(), MiscUtil::update);
+            msg.getJDA().shutdown();
         }).acceptCustom((event, cfg) -> MessageUtil.isGlobalAdmin(event.getAuthor())));
         commands.put("info", new CommandWrapper("Prints minimalistic info about your User, the TextChannel and the Guild.", (event, cfg) -> {
             String text = String.format("```\nUser:\n\t%-15s%s\n\t%-15s%s\n\t%-15s%s\n\t%-15s%s\n" +
