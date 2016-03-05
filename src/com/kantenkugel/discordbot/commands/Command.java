@@ -1,5 +1,6 @@
 package com.kantenkugel.discordbot.commands;
 
+import com.kantenkugel.discordbot.util.MessageUtil;
 import com.kantenkugel.discordbot.util.ServerConfig;
 import net.dv8tion.jda.events.message.MessageReceivedEvent;
 
@@ -19,6 +20,11 @@ public abstract class Command implements BiConsumer<MessageReceivedEvent, Server
             return customFunction.test(event, cfg);
         }
         switch(priv) {
+            case BOTADMIN:
+                if(!MessageUtil.isGlobalAdmin(event.getAuthor())) {
+                    return false;
+                }
+                break;
             case OWNER:
                 if(!cfg.isOwner(event.getAuthor()))
                     return false;
@@ -47,6 +53,10 @@ public abstract class Command implements BiConsumer<MessageReceivedEvent, Server
         return this;
     }
 
+    public Boolean doesAcceptPrivate() {
+        return requiresPrivate;
+    }
+
     public Command acceptCustom(BiPredicate<MessageReceivedEvent, ServerConfig> customFunction) {
         this.customFunction = customFunction;
         return this;
@@ -57,7 +67,21 @@ public abstract class Command implements BiConsumer<MessageReceivedEvent, Server
         return this;
     }
 
+    public Priv getPriv() {
+        return priv;
+    }
+
     public enum Priv {
-        ALL, OWNER, ADMIN, MOD
+        BOTADMIN("Bot Admin"), OWNER("Guild Owner"), ADMIN("Guild Admin"), MOD("Guild Mod"), ALL("Other");
+
+        private final String repr;
+
+        Priv(String repr) {
+            this.repr = repr;
+        }
+
+        public String getRepr() {
+            return repr;
+        }
     }
 }

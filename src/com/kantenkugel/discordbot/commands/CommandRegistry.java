@@ -138,22 +138,40 @@ public class CommandRegistry extends ListenerAdapter {
                 }
                 return;
             }
+            Map<Command.Priv, Set<String>> availCommands = new HashMap<>();
+            commands.entrySet().parallelStream().filter(entry -> entry.getValue().isAvailable(m, cfg)).sorted((e1, e2) -> e1.getKey().compareTo(e2.getKey())).sequential().forEach(c -> {
+                if(!availCommands.containsKey(c.getValue().getPriv())) {
+                    availCommands.put(c.getValue().getPriv(), new HashSet<>());
+                }
+                availCommands.get(c.getValue().getPriv()).add('`' + cfg.getPrefix() + c.getKey() + '`');
+            });
             String returned;
-            Optional<String> reduce = commands.keySet().stream().filter(key -> commands.get(key).isAvailable(m, cfg)).sorted().map(orig -> cfg.getPrefix() + orig).reduce((s1, s2) -> s1 + ", " + s2);
-            if(reduce.isPresent()) {
-                returned = "Available Commands: " + reduce.get();
+            if(!availCommands.isEmpty()) {
+                if(availCommands.size() == 1) {
+                    returned = StringUtils.join(availCommands.values().stream().findAny().get(), "\n") + "\n";
+                } else {
+                    returned = "";
+                    for(Command.Priv priv : Command.Priv.values()) {
+                        if(availCommands.containsKey(priv)) {
+                            returned += "Commands for: **" + priv.getRepr() + "**\n\t" + StringUtils.join(availCommands.get(priv), "\n\t") + "\n";
+                        }
+                    }
+                }
             } else {
-                returned = "No Commands available to you at this time in this chat";
+                returned = "No normal commands available!\n";
             }
-            reduce = cfg.getCommands().entrySet().stream().filter(entry -> entry.getValue().isAvailable(m, cfg)).map(entry -> cfg.getPrefix() + entry.getKey()).reduce((s1, s2) -> s1 + ", " + s2);
+            Optional<String> reduce = cfg.getCommands().entrySet().stream().filter(entry -> entry.getValue().isAvailable(m, cfg)).map(entry -> '`' + cfg.getPrefix() + entry.getKey() + '`').reduce((s1, s2) -> s1 + "\n\t" + s2);
             if(reduce.isPresent()) {
-                returned += "\nAvailable through modules: " + reduce.get();
+                returned += "Available through modules:\n\t" + reduce.get() + "\n";
             }
-            MessageUtil.reply(m, returned);
+            m.getAuthor().getPrivateChannel().sendMessage("Commands available for " + (m.isPrivate() ? "PM" : "Guild " + m.getGuild().getName())
+                    + ":\n\n" + returned+"\n**NOTE**: you can type `help COMMAND` to get more detailed info about a specific command.");
             if(m.isPrivate()) {
                 MessageUtil.reply(m, "In Guilds, my commands may be prefixed differently (standard prefix in guilds is -kb instead of !)\n" +
                         "There are also 2 special commands: `-kbreset` resets the guild-prefix to default (-kb) and `-kbprefix` prints the current prefix of the guild. " +
                         "These special commands work in every guild, independent of the configured prefix.");
+            } else {
+                MessageUtil.reply(m, "Help sent via PM.");
             }
         }));
         commands.put("texts", new CommandWrapper("Shows all available text-commands. (to add/edit/remove them, call addcom/editcom/delcom [requires mod-status])", (m, cfg) -> {
@@ -282,7 +300,7 @@ public class CommandRegistry extends ListenerAdapter {
             } else {
                 m.getTextChannel().sendMessage(msg);
             }
-        }).acceptCustom((e, cfg) -> MessageUtil.isGlobalAdmin(e.getAuthor())));
+        }).acceptPriv(Command.Priv.BOTADMIN));
         commands.put("uptime", new CommandWrapper("Prints the uptime... DUH!", (event, cfg) -> {
             MessageUtil.reply(event, "Running for " + MiscUtil.getUptime());
         }));
@@ -290,17 +308,17 @@ public class CommandRegistry extends ListenerAdapter {
             MessageUtil.reply(msg, "OK, Bye!");
             MiscUtil.await(msg.getJDA(), MiscUtil::shutdown);
             msg.getJDA().shutdown();
-        }).acceptCustom((event, cfg) -> MessageUtil.isGlobalAdmin(event.getAuthor())));
+        }).acceptPriv(Command.Priv.BOTADMIN));
         commands.put("restart", new CommandWrapper("Restarts this bot.", (msg, cfg) -> {
             MessageUtil.reply(msg, "OK, BRB!");
             MiscUtil.await(msg.getJDA(), MiscUtil::restart);
             msg.getJDA().shutdown();
-        }).acceptCustom((event, cfg) -> MessageUtil.isGlobalAdmin(event.getAuthor())));
+        }).acceptPriv(Command.Priv.BOTADMIN));
         commands.put("update", new CommandWrapper("Updates this bot.", (msg, cfg) -> {
             MessageUtil.reply(msg, "OK, BRB!");
             MiscUtil.await(msg.getJDA(), MiscUtil::update);
             msg.getJDA().shutdown();
-        }).acceptCustom((event, cfg) -> MessageUtil.isGlobalAdmin(event.getAuthor())));
+        }).acceptPriv(Command.Priv.BOTADMIN));
         commands.put("info", new CommandWrapper("Prints minimalistic info about your User, the TextChannel and the Guild.", (event, cfg) -> {
             String text = String.format("```\nUser:\n\t%-15s%s\n\t%-15s%s\n\t%-15s%s\n\t%-15s%s\n" +
                     "Channel:\n\t%-15s%s\n\t%-15s%s\n" +
