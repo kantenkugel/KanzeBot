@@ -103,7 +103,9 @@ public class AutoRespond extends Module {
             return false;
         }
         String content = event.getMessage().getContent().toLowerCase();
-        Optional<String> response = responses.values().parallelStream().filter(r -> r.getLeft().parallelStream().allMatch((content::contains))).map(Pair::getRight).findAny();
+        Optional<String> response = responses.values().parallelStream().filter(r -> r.getLeft().parallelStream()
+                .allMatch(k -> content.equals(k) || content.contains(' ' + k + ' ') || content.startsWith(k + ' ') || content.endsWith(' ' + k)))
+                .map(Pair::getRight).findAny();
         if(response.isPresent()) {
             respondLog.info(String.format("[%s][%s] %s: %s\n\t->%s", event.getGuild().getName(), event.getTextChannel().getName(),
                     event.getAuthor().getUsername(), event.getMessage().getContent(), response.get()));
