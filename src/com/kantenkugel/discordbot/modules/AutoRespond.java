@@ -104,7 +104,13 @@ public class AutoRespond extends Module {
         }
         String content = event.getMessage().getContent().toLowerCase();
         Optional<String> response = responses.values().parallelStream().filter(r -> r.getLeft().parallelStream()
-                .allMatch(k -> content.equals(k) || content.contains(' ' + k + ' ') || content.startsWith(k + ' ') || content.endsWith(' ' + k)))
+                .allMatch(k -> {
+                    int i = content.indexOf(k);
+                    return i >= 0                                               //exists
+                            && (i == 0 || content.charAt(i - 1) == ' ')         //at beginning or after space
+                            && (i + k.length() == content.length()              //et end or no alphanumeric
+                                || !Character.isLetterOrDigit(content.charAt(i + k.length())));
+                }))
                 .map(Pair::getRight).findAny();
         if(response.isPresent()) {
             respondLog.info(String.format("[%s][%s] %s: %s\n\t->%s", event.getGuild().getName(), event.getTextChannel().getName(),
