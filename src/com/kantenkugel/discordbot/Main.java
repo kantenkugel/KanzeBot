@@ -60,7 +60,13 @@ public class Main {
         CommandRegistry.init();
         Module.init();
         try {
-            JDABuilder jdaBuilder = new JDABuilder(args[0], args[1]).addListener(new CommandRegistry());
+            JDABuilder jdaBuilder;
+            if(args[1].equals("-")) {
+                jdaBuilder = new JDABuilder(args[0]);
+            } else {
+                jdaBuilder = new JDABuilder(args[0], args[1]);
+            }
+            jdaBuilder.addListener(new CommandRegistry());
             if(!args[3].equals("-")) {
                 boolean success = Boolean.parseBoolean(args[3]);
                 if(success) {
