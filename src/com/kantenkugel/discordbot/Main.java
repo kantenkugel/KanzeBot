@@ -37,6 +37,7 @@ public class Main {
         5+ MULTIPLE/NONE strings describing the changelog of this version
     */
     public static void main(String[] args) {
+//        Requester.LOG.setLevel(SimpleLog.Level.TRACE);
         if(args.length < 5) {
             System.out.println("Missing arguments!");
             return;

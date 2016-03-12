@@ -13,8 +13,11 @@ import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Inviter extends Module {
+    private static final Pattern authPattern = Pattern.compile("https://(?:www\\.)?discordapp\\.com/oauth2/authorize\\?&client_id=(\\d+)&scope=bot(?:&[^\\s]*)?");
 
 
     @Override
@@ -45,16 +48,24 @@ public class Inviter extends Module {
                 MessageUtil.reply(e, "Invalid syntax!");
                 return;
             }
-            try {
-                Long.parseLong(args[1]);
-            } catch(NumberFormatException ex) {
-                MessageUtil.reply(e, "Given argument is not a valid application-id");
-                return;
+            String app_id;
+            Matcher matcher = authPattern.matcher(args[1]);
+            if(matcher.matches()) {
+                app_id = matcher.group(1);
+            } else {
+                try {
+                    Long.parseLong(args[1]);
+                    app_id = args[1];
+                } catch(NumberFormatException ex) {
+                    MessageUtil.reply(e, "Given argument is not a valid application-id");
+                    return;
+                }
             }
 
             if(PermissionUtil.checkPermission(e.getJDA().getSelfInfo(), Permission.MANAGE_SERVER, e.getGuild())) {
-                ((JDAImpl) e.getJDA()).getRequester().post("https://discordapp.com/api/oauth2/authorize?client_id=" + args[1] + "&scope=bot",
+                ((JDAImpl) e.getJDA()).getRequester().post("https://discordapp.com/api/oauth2/authorize?client_id=" + app_id + "&scope=bot",
                         new JSONObject().put("guild_id", e.getGuild().getId()).put("permissions", 0).put("authorize", true));
+                MessageUtil.reply(e, "Given Bot was invited to this Guild");
             } else {
                 MessageUtil.reply(e, "This Bot is missing the MANAGE_SERVER permission to do this!");
             }
