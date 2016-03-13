@@ -17,7 +17,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Inviter extends Module {
-    private static final Pattern authPattern = Pattern.compile("https://(?:www\\.)?discordapp\\.com/oauth2/authorize\\?&client_id=(\\d+)&scope=bot(?:&[^\\s]*)?");
+    private static final Pattern authPattern = Pattern.compile("\\bhttps://(?:www\\.)?discordapp\\.com/oauth2/authorize\\?(?:.+&)?client_id=(\\d+)(?:&.+)?\\b");
 
 
     @Override
