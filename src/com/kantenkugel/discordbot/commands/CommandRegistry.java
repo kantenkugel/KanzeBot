@@ -23,6 +23,7 @@ import net.dv8tion.jda.managers.PermissionOverrideManager;
 import net.dv8tion.jda.utils.InviteUtil;
 import net.dv8tion.jda.utils.SimpleLog;
 import org.apache.commons.lang3.StringUtils;
+import org.json.JSONArray;
 
 import javax.imageio.ImageIO;
 import javax.script.ScriptEngine;
@@ -33,6 +34,10 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
@@ -44,8 +49,10 @@ import java.util.List;
  */
 public class CommandRegistry extends ListenerAdapter {
     public static long START_TIME = System.currentTimeMillis();
+    private static final Path blacklistFile = Paths.get("blacklist.json");
     private static final Map<String, Command> commands = new HashMap<>();
     private static final Map<String, ServerConfig> serverConfigs = new HashMap<>();
+    private static final Set<String> blacklist = new HashSet<>();
 
     private static final SimpleLog pmLog = SimpleLog.getLog("PM");
     private static final SimpleLog mentionLog = SimpleLog.getLog("Mention");
@@ -58,6 +65,16 @@ public class CommandRegistry extends ListenerAdapter {
     private static final ScriptEngine engine = new ScriptEngineManager().getEngineByName("Nashorn");
 
     public static void init() {
+        try {
+            if(!Files.exists(blacklistFile))
+                Files.write(blacklistFile, "[]".getBytes(StandardCharsets.UTF_8));
+            JSONArray blacklistArr = new JSONArray(StringUtils.join(Files.readAllLines(blacklistFile, StandardCharsets.UTF_8), ""));
+            for(int i = 0; i < blacklistArr.length(); i++) {
+                blacklist.add(blacklistArr.getString(i));
+            }
+        } catch(IOException e) {
+            e.printStackTrace();
+        }
         loadCommands();
         engine.put("commands", commands);
         engine.put("rng", new Random());
@@ -456,11 +473,74 @@ public class CommandRegistry extends ListenerAdapter {
             e.getChannel().sendMessage(new MessageBuilder().appendString("Stats for KanzeBot:\n")
                     .appendCodeBlock(stats, "").build());
         }));
+        commands.put("blacklist", new CommandWrapper("Blocks users from accessing features of this bot.\n" +
+                "Usage: `blacklist add|remove|del @Mention [@Mention]`\nOr: `blacklist add|remove|del userid`\n" +
+                "Or: `blacklist show`", (e, cfg) -> {
+            String[] args = MessageUtil.getArgs(e, cfg, 3);
+            if(args.length == 1) {
+                MessageUtil.reply(e, commands.get("blacklist").getDescription());
+                return;
+            }
+            List<User> mentioned = e.getMessage().getMentionedUsers();
+            switch(args[1].toLowerCase()) {
+                case "add":
+                    if(mentioned.isEmpty()) {
+                        if(args.length == 3) {
+                            blacklist.add(args[2]);
+                        } else {
+                            MessageUtil.reply(e, commands.get("blacklist").getDescription());
+                            return;
+                        }
+                    } else {
+                        mentioned.stream().filter(u -> !MessageUtil.isGlobalAdmin(u)).forEach(u -> blacklist.add(u.getId()));
+                    }
+                    break;
+                case "del":
+                case "remove":
+                    if(mentioned.isEmpty()) {
+                        if(args.length == 3) {
+                            blacklist.remove(args[2]);
+                        } else {
+                            MessageUtil.reply(e, commands.get("blacklist").getDescription());
+                            return;
+                        }
+                    } else {
+                        mentioned.forEach(u -> blacklist.remove(u.getId()));
+                    }
+                    break;
+                case "show":
+                case "list":
+                    Optional<String> black = blacklist.stream().map(b -> {
+                        User userById = e.getJDA().getUserById(b);
+                        if(userById == null)
+                            return b;
+                        return userById.getUsername() + '(' + b + ')';
+                    }).reduce((s1, s2) -> s1 + ", " + s2);
+                    if(black.isPresent()) {
+                        MessageUtil.reply(e, "Current blacklist: " + black.get(), false);
+                    } else {
+                        MessageUtil.reply(e, "Blacklist is empty", false);
+                    }
+                default:
+                    return;
+            }
+            try {
+                JSONArray blacklistArr = new JSONArray();
+                blacklist.forEach(blacklistArr::put);
+                Files.write(blacklistFile, Arrays.asList(blacklistArr.toString(4).split("\n")));
+            } catch(IOException ex) {
+                ex.printStackTrace();
+            }
+            MessageUtil.reply(e, "User(s) added/removed from blacklist!");
+        }).acceptPriv(Command.Priv.BOTADMIN));
     }
 
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
         msgCount++;
+        if(blacklist.contains(event.getAuthor().getId())) {
+            return;
+        }
         ServerConfig cfg;
         if(!event.isPrivate()) {
             cfg = serverConfigs.get(event.getTextChannel().getGuild().getId());
@@ -552,6 +632,9 @@ public class CommandRegistry extends ListenerAdapter {
 
     @Override
     public void onInviteReceived(InviteReceivedEvent event) {
+        if(blacklist.contains(event.getAuthor().getId())) {
+            return;
+        }
         if((event.getMessage().isPrivate() || event.getMessage().getMentionedUsers().contains(event.getJDA().getSelfInfo()))
                 && event.getJDA().getGuildById(event.getInvite().getGuildId()) == null) {
             InviteUtil.join(event.getInvite(), event.getJDA(), null);

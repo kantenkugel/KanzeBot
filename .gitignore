@@ -3,6 +3,8 @@
 /meta/
 /configs/
 tokens.json
+translate_config.json
+blacklist.json
 
 # eclipse files
 .classpath
