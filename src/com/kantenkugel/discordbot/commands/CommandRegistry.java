@@ -200,27 +200,32 @@ public class CommandRegistry extends ListenerAdapter {
                 MessageUtil.reply(m, "No Text-Commands defined for this guild");
             }
         }).acceptCustom((m, cfg) -> !m.isPrivate() && (!cfg.isRestrictTexts() || cfg.isMod(m.getAuthor()))));
-        commands.put("clear", new CommandWrapper("Clears either the whole chat in this channel, or only messages newer than given time.\n" +
-                "Usage: `clear` to clear everything, or \n" +
+        commands.put("clear", new CommandWrapper("Clears either 24h of chat in this channel, or only messages newer than given time.\n" +
+                "Usage: `clear` to clear 24h, or \n" +
                 "`clear [xh][ym][zs] [@Mention] [@Mention]` with x,y,z being integers and defining the hours, minutes and seconds to clear (at least one of those must be present)" +
-                " and optional Mentions to specify that only messages of these users should be cleared.", (m, cfg) -> {
+                " and optional Mentions to specify that only messages of these users should be cleared.\n\nBoth variants clear a max of 1000 messages.", (m, cfg) -> {
             if(!m.getTextChannel().checkPermission(m.getJDA().getSelfInfo(), Permission.MESSAGE_MANAGE)) {
                 MessageUtil.reply(m, "I do not have permissions!");
                 return;
             }
             String[] args = MessageUtil.getArgs(m, cfg, 3);
+            OffsetDateTime clearTo;
+            String msg;
+            List<User> mentioned = null;
             if(args.length == 1) {
-                MessageHistory history = new MessageHistory(m.getJDA(), m.getTextChannel());
-                TaskHelper.start("clear" + m.getTextChannel().getId(), new ClearRunner(history, null, null));
+                clearTo = MiscUtil.getOffsettedTime("24h");
+                msg = "Clearing messages younger 24hrs... ";
             } else {
-                OffsetDateTime clearTo = MiscUtil.getOffsettedTime(args[1]);
-                if(clearTo != null) {
-                    List<User> mentioned = m.getMessage().getMentionedUsers();
-                    MessageHistory history = new MessageHistory(m.getJDA(), m.getTextChannel());
-                    if(!TaskHelper.start("clear" + m.getTextChannel().getId(), new ClearRunner(history, clearTo, mentioned))) {
-                        MessageUtil.reply(m, "There is already a clear-task running for this Channel!");
-                    }
-                }
+                clearTo = MiscUtil.getOffsettedTime(args[1]);
+                msg = "Clearing messages younger " + args[1];
+                mentioned = m.getMessage().getMentionedUsers();
+            }
+            if(clearTo == null) {
+                MessageUtil.reply(m, "Incorrect time range!");
+                return;
+            }
+            if(!TaskHelper.start("clear" + m.getTextChannel().getId(), new ClearRunner(m.getTextChannel(), clearTo, mentioned, msg))) {
+                MessageUtil.reply(m, "There is already a clear-task running for this Channel!");
             }
         }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
         commands.put("kick", new CommandWrapper("Kicks one or more Users from this Guild.\n" +
@@ -848,39 +853,49 @@ public class CommandRegistry extends ListenerAdapter {
     }
 
     private static class ClearRunner implements Runnable {
+        private final TextChannel channel;
         private final MessageHistory history;
         private final OffsetDateTime time;
         private final List<User> mentioned;
+        private Message message;
 
-        public ClearRunner(MessageHistory histo, OffsetDateTime time, List<User> mentioned) {
-            this.history = histo;
+        public ClearRunner(TextChannel channel, OffsetDateTime time, List<User> mentioned, String msg) {
+            this.channel = channel;
+            this.history = new MessageHistory(channel.getJDA(), channel);
             this.time = time;
-            this.mentioned = mentioned.isEmpty() ? null : mentioned;
+            this.mentioned = (mentioned == null || mentioned.isEmpty()) ? null : mentioned;
+            this.message = new MessageBuilder().appendString(msg).build();
         }
 
         @Override
         public void run() {
-            if(time == null) {
-                List<Message> messages = history.retrieve();
-                while(messages != null) {
-                    messages.stream().filter(m -> mentioned == null || mentioned.contains(m.getAuthor())).forEach(Message::deleteMessage);
-                    messages = history.retrieve();
+            int sets = 0;
+            List<Message> messages = history.retrieve();
+            message = channel.sendMessage(message);
+            while(messages != null) {
+                if(sets++ > 10) {
+                    try {
+                        message.updateMessage(message.getRawContent() + "Reached cap (1000 Messages)!");
+                    } catch(Exception ignored) {}
+                    return;
                 }
-            } else {
-                List<Message> messages = history.retrieve();
-                while(messages != null) {
-                    for(Message message : messages) {
-                        if(message.getTime().isAfter(time)) {
-                            if(mentioned == null || mentioned.contains(message.getAuthor())) {
-                                message.deleteMessage();
-                            }
-                        } else {
-                            return;
+                for(Message message : messages) {
+                    if(message.getTime().isAfter(time)) {
+                        if(mentioned == null || mentioned.contains(message.getAuthor())) {
+                            message.deleteMessage();
                         }
+                    } else {
+                        messages = null;
+                        break;
                     }
-                    messages = history.retrieve();
                 }
+                sets++;
+                if(messages != null)
+                    messages = history.retrieve();
             }
+            try {
+                message.updateMessage(message.getRawContent() + "done!");
+            } catch(Exception ignored) {}
         }
     }
 }
