@@ -635,8 +635,15 @@ public class CommandRegistry extends ListenerAdapter {
         if(blacklist.contains(event.getAuthor().getId())) {
             return;
         }
-        if((event.getMessage().isPrivate() || event.getMessage().getMentionedUsers().contains(event.getJDA().getSelfInfo()))
-                && event.getJDA().getGuildById(event.getInvite().getGuildId()) == null) {
+        if((event.getMessage().isPrivate() || event.getMessage().getMentionedUsers().contains(event.getJDA().getSelfInfo()))) {
+            if(event.getJDA().getGuildById(event.getInvite().getGuildId()) != null) {
+                if(event.getMessage().isPrivate()) {
+                    event.getJDA().getPrivateChannelById(event.getMessage().getChannelId()).sendMessage("Already in that Server!");
+                } else {
+                    event.getJDA().getTextChannelById(event.getMessage().getChannelId()).sendMessage("Already in that Server!");
+                }
+                return;
+            }
             InviteUtil.join(event.getInvite(), event.getJDA(), null);
             String text = "Joined Guild! Server owner should probably configure me via the config command\nDefault prefix is: "
                     + ServerConfig.DEFAULT_PREFIX + "\nThe owner can reset it by calling -kbreset";
