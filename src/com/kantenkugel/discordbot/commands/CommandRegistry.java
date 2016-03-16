@@ -549,10 +549,6 @@ public class CommandRegistry extends ListenerAdapter {
                 MessageUtil.reply(event, "Prefix was reset to default (" + ServerConfig.DEFAULT_PREFIX + ")");
                 return;
             }
-            if(event.getMessage().getContent().equals("-kbprefix")) {
-                MessageUtil.reply(event, "Current prefix is: `" + cfg.getPrefix() + '`');
-                return;
-            }
             if(event.getMessage().getMentionedUsers().contains(event.getJDA().getSelfInfo()) || event.getMessage().getMentionedUsers().contains(kantenkugel)) {
                 mentionLog.info(String.format("[%s][%s] %s:%s", event.getGuild().getName(), event.getTextChannel().getName(),
                         event.getAuthor().getUsername(), event.getMessage().getContent()));
@@ -561,6 +557,11 @@ public class CommandRegistry extends ListenerAdapter {
             cfg = ServerConfig.PMConfig.getInstance(event.getJDA());
             if(event.getAuthor() != event.getJDA().getSelfInfo())
                 pmLog.info(event.getAuthor().getUsername() + ": " + event.getMessage().getContent());
+        }
+
+        if(event.getMessage().getContent().equals("-kbprefix")) {
+            MessageUtil.reply(event, "Current command-prefix is: `" + cfg.getPrefix() + '`');
+            return;
         }
 
         if(cfg.getModules().values().stream().map(m -> m.handle(event)).anyMatch(b -> b)) {
