@@ -217,7 +217,7 @@ public class CommandRegistry extends ListenerAdapter {
                 MessageUtil.reply(m, "Incorrect time range!");
                 return;
             }
-            String msg = "Clearing messages younger " + args[1];
+            String msg = "Clearing messages younger " + args[1] + "... ";
             List<User> mentioned = m.getMessage().getMentionedUsers();
             if(!TaskHelper.start("clear" + m.getTextChannel().getId(), new ClearRunner(m.getTextChannel(), clearTo, mentioned, msg))) {
                 MessageUtil.reply(m, "There is already a clear-task running for this Channel!");
