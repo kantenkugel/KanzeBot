@@ -200,30 +200,25 @@ public class CommandRegistry extends ListenerAdapter {
                 MessageUtil.reply(m, "No Text-Commands defined for this guild");
             }
         }).acceptCustom((m, cfg) -> !m.isPrivate() && (!cfg.isRestrictTexts() || cfg.isMod(m.getAuthor()))));
-        commands.put("clear", new CommandWrapper("Clears either 24h of chat in this channel, or only messages newer than given time.\n" +
-                "Usage: `clear` to clear 24h, or \n" +
-                "`clear [xh][ym][zs] [@Mention] [@Mention]` with x,y,z being integers and defining the hours, minutes and seconds to clear (at least one of those must be present)" +
-                " and optional Mentions to specify that only messages of these users should be cleared.\n\nBoth variants clear a max of 1000 messages.", (m, cfg) -> {
+        commands.put("clear", new CommandWrapper("Clears messages newer than given time.\n" +
+                "Usage: `clear [xh][ym][zs] [@Mention] [@Mention]` with x,y,z being integers and defining the hours, minutes and seconds to clear (at least one of those must be present)" +
+                " and optional Mentions to specify that only messages of these users should be cleared.\nThis will clear a max of 1000 messages at once.", (m, cfg) -> {
             if(!m.getTextChannel().checkPermission(m.getJDA().getSelfInfo(), Permission.MESSAGE_MANAGE)) {
                 MessageUtil.reply(m, "I do not have permissions!");
                 return;
             }
             String[] args = MessageUtil.getArgs(m, cfg, 3);
-            OffsetDateTime clearTo;
-            String msg;
-            List<User> mentioned = null;
-            if(args.length == 1) {
-                clearTo = MiscUtil.getOffsettedTime("24h");
-                msg = "Clearing messages younger 24hrs... ";
-            } else {
-                clearTo = MiscUtil.getOffsettedTime(args[1]);
-                msg = "Clearing messages younger " + args[1];
-                mentioned = m.getMessage().getMentionedUsers();
+            if(args.length < 2) {
+                MessageUtil.reply(m, "Please provide a time-span to delete!");
+                return;
             }
+            OffsetDateTime clearTo = MiscUtil.getOffsettedTime(args[1]);
             if(clearTo == null) {
                 MessageUtil.reply(m, "Incorrect time range!");
                 return;
             }
+            String msg = "Clearing messages younger " + args[1];
+            List<User> mentioned = m.getMessage().getMentionedUsers();
             if(!TaskHelper.start("clear" + m.getTextChannel().getId(), new ClearRunner(m.getTextChannel(), clearTo, mentioned, msg))) {
                 MessageUtil.reply(m, "There is already a clear-task running for this Channel!");
             }
@@ -863,7 +858,7 @@ public class CommandRegistry extends ListenerAdapter {
             this.channel = channel;
             this.history = new MessageHistory(channel.getJDA(), channel);
             this.time = time;
-            this.mentioned = (mentioned == null || mentioned.isEmpty()) ? null : mentioned;
+            this.mentioned = mentioned.isEmpty() ? null : mentioned;
             this.message = new MessageBuilder().appendString(msg).build();
         }
 
