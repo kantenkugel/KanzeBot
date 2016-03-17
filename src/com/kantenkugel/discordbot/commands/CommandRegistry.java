@@ -2,10 +2,7 @@ package com.kantenkugel.discordbot.commands;
 
 import com.kantenkugel.discordbot.Main;
 import com.kantenkugel.discordbot.modules.Module;
-import com.kantenkugel.discordbot.util.MessageUtil;
-import com.kantenkugel.discordbot.util.MiscUtil;
-import com.kantenkugel.discordbot.util.ServerConfig;
-import com.kantenkugel.discordbot.util.TaskHelper;
+import com.kantenkugel.discordbot.util.*;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.MessageBuilder;
 import net.dv8tion.jda.MessageHistory;
@@ -78,6 +75,7 @@ public class CommandRegistry extends ListenerAdapter {
         loadCommands();
         engine.put("commands", commands);
         engine.put("rng", new Random());
+        engine.put("finder", new FinderUtil());
         engine.put("Command", CustomCommand.class);
         try {
             engine.eval("var imports = new JavaImporter(java.io, java.lang, java.util);");
