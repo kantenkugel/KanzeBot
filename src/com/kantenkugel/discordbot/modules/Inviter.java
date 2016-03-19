@@ -42,7 +42,8 @@ public class Inviter extends Module {
     @Override
     public Map<String, Command> getCommands() {
         Map<String, Command> commands = new HashMap<>();
-        commands.put("invite", new CommandWrapper("Invites a bot to this Guild.\n**Usage:** `invite application_id`", (e, cfg) -> {
+        commands.put("invite", new CommandWrapper("Invites a bot to this Guild.\n**Usage:** `invite application_id`\n" +
+                "**Or:** `invite Oauth-URL`", (e, cfg) -> {
             String[] args = MessageUtil.getArgs(e, cfg, 3);
             if(args.length != 2) {
                 MessageUtil.reply(e, "Invalid syntax!");
