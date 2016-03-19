@@ -67,7 +67,7 @@ public class Main {
             } else {
                 jdaBuilder = new JDABuilder(args[0], args[1]);
             }
-            jdaBuilder.addListener(new CommandRegistry());
+            jdaBuilder.setAudioEnabled(false).addListener(new CommandRegistry());
             if(!args[3].equals("-")) {
                 boolean success = Boolean.parseBoolean(args[3]);
                 if(success) {

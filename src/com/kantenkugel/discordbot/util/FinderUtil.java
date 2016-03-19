@@ -7,6 +7,10 @@ import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 public class FinderUtil {
     public <T> T findById(Collection<? extends T> coll, String id) {
@@ -110,5 +114,23 @@ public class FinderUtil {
             }
         }
         return null;
+    }
+
+    public <T> List<T> find(Collection<? extends T> coll, Function<T, Object> func, Object compare) {
+        return coll.parallelStream().filter(t -> func.apply(t).equals(compare)).collect(Collectors.toList());
+    }
+
+    public <T> T findOne(Collection<? extends T> coll, Function<T, Object> func, Object compare) {
+        Optional<? extends T> any = coll.parallelStream().filter(t -> func.apply(t).equals(compare)).findAny();
+        return any.isPresent() ? any.get() : null;
+    }
+
+    public <T> List<T> find(Collection<? extends T> coll, Predicate<T> test) {
+        return coll.parallelStream().filter(test).collect(Collectors.toList());
+    }
+
+    public <T> T findOne(Collection<? extends T> coll, Predicate<T> test) {
+        Optional<? extends T> any = coll.parallelStream().filter(test).findAny();
+        return any.isPresent() ? any.get() : null;
     }
 }
