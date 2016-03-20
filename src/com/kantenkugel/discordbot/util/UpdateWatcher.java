@@ -1,5 +1,6 @@
 package com.kantenkugel.discordbot.util;
 
+import com.kantenkugel.discordbot.Statics;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.entities.MessageChannel;
 
@@ -8,11 +9,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 
 public class UpdateWatcher extends Thread {
-    public static final int UPDATE_EXIT_CODE = 20;
-    public static final int NORMAL_EXIT_CODE = 21;
-    public static final int RESTART_CODE = 22;
-    public static final int REVERT_CODE = 23;
-
     private final JDA api;
 
     public UpdateWatcher(JDA api) {
@@ -30,12 +26,12 @@ public class UpdateWatcher extends Thread {
                 int code = Integer.parseInt(cmd);
                 cmd = null;
                 switch(code) {
-                    case UPDATE_EXIT_CODE:
+                    case Statics.UPDATE_EXIT_CODE:
                         cmd = "update";
-                    case NORMAL_EXIT_CODE:
+                    case Statics.NORMAL_EXIT_CODE:
                         if(cmd == null)
                             cmd = "shutdown";
-                    case RESTART_CODE:
+                    case Statics.RESTART_EXIT_CODE:
                         if(cmd == null)
                             cmd = "restart";
                         getChannel(api).sendMessage("Wrapper requested to " + cmd + ". Doing so now...");

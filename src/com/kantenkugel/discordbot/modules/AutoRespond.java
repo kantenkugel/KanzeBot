@@ -1,6 +1,6 @@
 package com.kantenkugel.discordbot.modules;
 
-import com.kantenkugel.discordbot.Main;
+import com.kantenkugel.discordbot.Statics;
 import com.kantenkugel.discordbot.commands.Command;
 import com.kantenkugel.discordbot.commands.CommandWrapper;
 import com.kantenkugel.discordbot.util.MessageUtil;
@@ -195,7 +195,8 @@ public class AutoRespond extends Module {
     private String getUsage() {
         return "**Usage:**\n`add NAME [WORD WORD ...] RESPONSE` (include brackets)\n**Or:**\n`remove NAME`\n**Or:**\n`channels add/remove CHANNEL [CHANNEL ...]`\n\n" +
                 "Registered: " + (responses.isEmpty() ? "None!" : StringUtils.join(responses.keySet(), ", "))
-                + "\nChannels: " + (channels.isEmpty() ? "All" : channels.stream().map(id -> Main.api.getTextChannelById(id) == null ? null : Main.api.getTextChannelById(id).getName())
+                + "\nChannels: " + (channels.isEmpty() ? "All" : channels.stream()
+                .map(id -> Statics.jdaInstance.getTextChannelById(id) == null ? null : Statics.jdaInstance.getTextChannelById(id).getName())
                 .filter(s -> s != null).reduce((s1, s2) -> s1 + ", " + s2).get());
     }
 

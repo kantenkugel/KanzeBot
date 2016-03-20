@@ -2,9 +2,8 @@ package com.kantenkugel.discordbot;
 
 import com.kantenkugel.discordbot.commands.CommandRegistry;
 import com.kantenkugel.discordbot.modules.Module;
-import com.kantenkugel.discordbot.util.UpdateChecker;
+import com.kantenkugel.discordbot.util.UpdateValidator;
 import com.kantenkugel.discordbot.util.UpdateWatcher;
-import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.JDABuilder;
 import net.dv8tion.jda.events.Event;
 import net.dv8tion.jda.events.ReadyEvent;
@@ -20,12 +19,7 @@ import java.io.IOException;
  * Created by Michael Ritter on 05.12.2015.
  */
 public class Main {
-    public static int VERSION;
-    public static String CHANGES;
-    public static JDA api;
-    public static UpdateChecker checker = null;
-
-    public static final SimpleLog LOG = SimpleLog.getLog("KanzeBot");
+    public static UpdateValidator checker = null;
 
     /*
     Args:
@@ -50,12 +44,12 @@ public class Main {
         }
 
         CommandRegistry.START_TIME = Long.parseLong(args[2]);
-        VERSION = Integer.parseInt(args[4]);
+        Statics.VERSION = Integer.parseInt(args[4]);
 
         if(args.length > 5) {
-            CHANGES = StringUtils.join(args, '\n', 5, args.length);
+            Statics.CHANGES = StringUtils.join(args, '\n', 5, args.length);
         } else {
-            CHANGES = null;
+            Statics.CHANGES = null;
         }
 
         CommandRegistry.init();
@@ -71,16 +65,16 @@ public class Main {
             if(!args[3].equals("-")) {
                 boolean success = Boolean.parseBoolean(args[3]);
                 if(success) {
-                    checker = UpdateChecker.getInstance();
+                    checker = UpdateValidator.getInstance();
                     checker.start();
                 }
                 jdaBuilder.addListener(new UpdatePrintListener(success));
             }
-            api = jdaBuilder.buildAsync();
-            CommandRegistry.setJDA(api);
-            new UpdateWatcher(api);
+            Statics.jdaInstance = jdaBuilder.buildAsync();
+            CommandRegistry.setJDA(Statics.jdaInstance);
+            new UpdateWatcher(Statics.jdaInstance);
         } catch(LoginException e) {
-            LOG.fatal("Login informations were incorrect!");
+            Statics.LOG.fatal("Login informations were incorrect!");
             System.err.flush();
         }
     }
@@ -96,9 +90,9 @@ public class Main {
                 if(checker != null) {
                     checker.interrupt();
                 }
-                UpdateWatcher.getChannel(event.getJDA()).sendMessage("Update was " + (success ? "" : "**NOT**") + "successful!\nCurrent revision: " + VERSION);
-                if(CHANGES != null) {
-                    UpdateWatcher.getChannel(event.getJDA()).sendMessage("Changes for this revision:\n" + CHANGES);
+                UpdateWatcher.getChannel(event.getJDA()).sendMessage("Update was " + (success ? "" : "**NOT**") + "successful!\nCurrent revision: " + Statics.VERSION);
+                if(Statics.CHANGES != null) {
+                    UpdateWatcher.getChannel(event.getJDA()).sendMessage("Changes for this revision:\n" + Statics.CHANGES);
                 }
                 event.getJDA().removeEventListener(this);
             }

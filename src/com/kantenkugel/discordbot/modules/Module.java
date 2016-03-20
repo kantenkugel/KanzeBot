@@ -1,6 +1,6 @@
 package com.kantenkugel.discordbot.modules;
 
-import com.kantenkugel.discordbot.Main;
+import com.kantenkugel.discordbot.Statics;
 import com.kantenkugel.discordbot.commands.Command;
 import com.kantenkugel.discordbot.util.ClassEnumerator;
 import com.kantenkugel.discordbot.util.ServerConfig;
@@ -39,7 +39,7 @@ public abstract class Module {
             if(module.availableInPms()) {
                 ServerConfig.PMConfig.registerModule(module.getName().toLowerCase());
             }
-            Main.LOG.info("Registered module " + module.getName().toLowerCase());
+            Statics.LOG.info("Registered module " + module.getName().toLowerCase());
         } catch(InstantiationException | IllegalAccessException e) {
             e.printStackTrace();
         }

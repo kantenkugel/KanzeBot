@@ -1,16 +1,18 @@
 package com.kantenkugel.discordbot.util;
 
-public class UpdateChecker extends Thread {
+import com.kantenkugel.discordbot.Statics;
+
+public class UpdateValidator extends Thread {
     private static final int MAX_TIME = 30*1000;
-    private static UpdateChecker instance;
-    public static synchronized UpdateChecker getInstance() {
+    private static UpdateValidator instance;
+    public static synchronized UpdateValidator getInstance() {
         if(instance == null) {
-            instance = new UpdateChecker();
+            instance = new UpdateValidator();
         }
         return instance;
     }
 
-    private UpdateChecker() {
+    private UpdateValidator() {
         setDaemon(true);
     }
 
@@ -23,6 +25,6 @@ public class UpdateChecker extends Thread {
         }
         System.out.println("Failed to start, reverting to old version");
         System.out.flush();
-        System.exit(UpdateWatcher.REVERT_CODE);
+        System.exit(Statics.REVERT_EXIT_CODE);
     }
 }

@@ -1,6 +1,6 @@
 package com.kantenkugel.discordbot.util;
 
-import com.kantenkugel.discordbot.Main;
+import com.kantenkugel.discordbot.Statics;
 import com.kantenkugel.discordbot.commands.CommandRegistry;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.entities.impl.JDAImpl;
@@ -41,8 +41,8 @@ public class MiscUtil {
         try {
             URL u = new URL(url);
             URLConnection urlConnection = u.openConnection();
-            urlConnection.setRequestProperty("user-agent", "KanzeBot DiscordBot (https://github.com/Kantenkugel/KanzeBot, " + Main.VERSION + ')');
-            urlConnection.setRequestProperty("authorization", Main.api.getAuthToken());
+            urlConnection.setRequestProperty("user-agent", "KanzeBot DiscordBot (https://github.com/Kantenkugel/KanzeBot, " + Statics.VERSION + ')');
+            urlConnection.setRequestProperty("authorization", Statics.jdaInstance.getAuthToken());
             return urlConnection.getInputStream();
         } catch(IOException e) {
             e.printStackTrace();
@@ -80,14 +80,14 @@ public class MiscUtil {
     }
 
     public static void shutdown() {
-        System.exit(UpdateWatcher.NORMAL_EXIT_CODE);
+        System.exit(Statics.NORMAL_EXIT_CODE);
     }
 
     public static void restart() {
-        System.exit(UpdateWatcher.RESTART_CODE);
+        System.exit(Statics.RESTART_EXIT_CODE);
     }
 
     public static void update() {
-        System.exit(UpdateWatcher.UPDATE_EXIT_CODE);
+        System.exit(Statics.UPDATE_EXIT_CODE);
     }
 }

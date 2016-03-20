@@ -1,6 +1,6 @@
 package com.kantenkugel.discordbot.commands;
 
-import com.kantenkugel.discordbot.Main;
+import com.kantenkugel.discordbot.Statics;
 import com.kantenkugel.discordbot.modules.Module;
 import com.kantenkugel.discordbot.util.*;
 import net.dv8tion.jda.JDA;
@@ -55,7 +55,6 @@ public class CommandRegistry extends ListenerAdapter {
     private static final SimpleLog mentionLog = SimpleLog.getLog("Mention");
     private static final SimpleLog commandLog = SimpleLog.getLog("Command");
 
-    private static User kantenkugel;
     private static long msgCount = 0;
     private static int cmdCount = 0;
 
@@ -466,8 +465,8 @@ public class CommandRegistry extends ListenerAdapter {
                     "Uptime:", MiscUtil.getUptime(),
                     "Messages seen:", msgCount,
                     "Commands seen:", cmdCount,
-                    "Version rev:", Main.VERSION,
-                    "Changes of current version:", Main.CHANGES);
+                    "Version rev:", Statics.VERSION,
+                    "Changes of current version:", Statics.CHANGES);
             e.getChannel().sendMessage(new MessageBuilder().appendString("Stats for KanzeBot:\n")
                     .appendCodeBlock(stats, "").build());
         }));
@@ -531,6 +530,12 @@ public class CommandRegistry extends ListenerAdapter {
             }
             MessageUtil.reply(e, "User(s) added/removed from blacklist!");
         }).acceptPriv(Command.Priv.BOTADMIN));
+        commands.put("botinfo", new CommandWrapper("Shows some basic info about this Bot", e -> {
+            MessageUtil.reply(e, "```\n" + e.getJDA().getSelfInfo().getUsername() + " info:\nBot-ID: " + e.getJDA().getSelfInfo().getId() +
+                    "\nOwner: " + Statics.botOwner.getUsername() + '#' + Statics.botOwner.getDiscriminator() +
+                    "\nOwner-ID: " + Statics.botOwner.getId() + "\nVersion-rev.: " + Statics.VERSION +
+                    "\nLibrary: JDA\nLibrary version: " + Statics.JDAVERSION + "\n```");
+        }));
     }
 
     @Override
@@ -547,7 +552,7 @@ public class CommandRegistry extends ListenerAdapter {
                 MessageUtil.reply(event, "Prefix was reset to default (" + ServerConfig.DEFAULT_PREFIX + ")");
                 return;
             }
-            if(event.getMessage().getMentionedUsers().contains(event.getJDA().getSelfInfo()) || event.getMessage().getMentionedUsers().contains(kantenkugel)) {
+            if(event.getMessage().getMentionedUsers().contains(event.getJDA().getSelfInfo()) || event.getMessage().getMentionedUsers().contains(Statics.botOwner)) {
                 mentionLog.info(String.format("[%s][%s] %s:%s", event.getGuild().getName(), event.getTextChannel().getName(),
                         event.getAuthor().getUsername(), event.getMessage().getContent()));
             }
@@ -614,18 +619,18 @@ public class CommandRegistry extends ListenerAdapter {
         for(Guild guild : jda.getGuilds()) {
             serverConfigs.put(guild.getId(), new ServerConfig(jda, guild));
         }
-        kantenkugel = jda.getUserById("122758889815932930");
+        Statics.botOwner = jda.getUserById("122758889815932930");
     }
 
     @Override
     public void onGuildJoin(GuildJoinEvent event) {
-        Main.LOG.info("Joined Guild " + event.getGuild().getName());
+        Statics.LOG.info("Joined Guild " + event.getGuild().getName());
         serverConfigs.put(event.getGuild().getId(), new ServerConfig(event.getJDA(), event.getGuild()));
     }
 
     @Override
     public void onGuildLeave(GuildLeaveEvent event) {
-        Main.LOG.info("Left Guild " + event.getGuild().getName());
+        Statics.LOG.info("Left Guild " + event.getGuild().getName());
         serverConfigs.remove(event.getGuild().getId());
     }
 
@@ -646,7 +651,7 @@ public class CommandRegistry extends ListenerAdapter {
             InviteUtil.join(event.getInvite(), event.getJDA(), null);
             String text = "Joined Guild! Server owner should probably configure me via the config command\nDefault prefix is: "
                     + ServerConfig.DEFAULT_PREFIX + "\nThe owner can reset it by calling -kbreset";
-            Main.LOG.info("Joining Guild " + event.getInvite().getGuildName() + " via invite of " + event.getAuthor().getUsername());
+            Statics.LOG.info("Joining Guild " + event.getInvite().getGuildName() + " via invite of " + event.getAuthor().getUsername());
             if(event.getMessage().isPrivate()) {
                 event.getJDA().getPrivateChannelById(event.getMessage().getChannelId()).sendMessage(text);
             } else {
