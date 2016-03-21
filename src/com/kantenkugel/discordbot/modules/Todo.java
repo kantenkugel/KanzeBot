@@ -51,12 +51,20 @@ public class Todo extends Module {
             if(cfgString.startsWith("channel ")) {
                 if(event.getMessage().getMentionedChannels().size() > 0) {
                     TextChannel channel = event.getMessage().getMentionedChannels().get(0);
+                    if(!channel.checkPermission(api.getSelfInfo(), Permission.MESSAGE_WRITE)) {
+                        MessageUtil.reply(event, "I do not have WRITE-Permission for that channel!");
+                        return;
+                    }
                     changeChannel(channel.getId());
                     MessageUtil.reply(event, "Set todo channel to " + channel.getName());
                     return;
                 }
                 Optional<TextChannel> any = event.getGuild().getTextChannels().parallelStream().filter(c -> c.getName().equals(cfgString.substring(8))).findAny();
                 if(any.isPresent()) {
+                    if(!any.get().checkPermission(api.getSelfInfo(), Permission.MESSAGE_WRITE)) {
+                        MessageUtil.reply(event, "I do not have WRITE-Permission for that channel!");
+                        return;
+                    }
                     changeChannel(any.get().getId());
                     MessageUtil.reply(event, "Set todo channel to " + any.get().getName());
                 } else {

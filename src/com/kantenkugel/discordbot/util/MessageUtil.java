@@ -1,6 +1,8 @@
 package com.kantenkugel.discordbot.util;
 
 import net.dv8tion.jda.MessageBuilder;
+import net.dv8tion.jda.Permission;
+import net.dv8tion.jda.entities.Message;
 import net.dv8tion.jda.entities.User;
 import net.dv8tion.jda.events.message.MessageReceivedEvent;
 
@@ -12,17 +14,25 @@ public class MessageUtil {
         return user.getId().equals("122758889815932930") || user.getId().equals("107562988810027008") || user.getId().equals("107490111414882304");
     }
 
-    public static void reply(MessageReceivedEvent event, String txt) {
-        reply(event, txt, true);
+    public static boolean reply(MessageReceivedEvent event, String txt) {
+        return reply(event, txt, true);
     }
 
-    public static void reply(MessageReceivedEvent event, String txt, boolean addName) {
+    public static boolean reply(MessageReceivedEvent event, String txt, boolean addName) {
         MessageBuilder mb = new MessageBuilder();
         if(!event.isPrivate() && addName) {
             mb.appendString(event.getAuthor().getUsername()).appendString(": ");
         }
         mb.appendString(txt);
-        event.getChannel().sendMessage(mb.build());
+        return reply(event, mb.build());
+    }
+
+    public static boolean reply(MessageReceivedEvent event, Message message) {
+        if(!event.isPrivate() && !event.getTextChannel().checkPermission(event.getJDA().getSelfInfo(), Permission.MESSAGE_WRITE)) {
+            return false;
+        }
+        event.getChannel().sendMessage(message);
+        return true;
     }
 
     public static String[] getArgs(MessageReceivedEvent event, ServerConfig cfg, int limit) {

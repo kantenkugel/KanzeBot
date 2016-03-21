@@ -313,7 +313,7 @@ public class CommandRegistry extends ListenerAdapter {
             } catch(Exception e) {
                 msg = new MessageBuilder().appendString(e.getMessage(), MessageBuilder.Formatting.BLOCK).build();
             }
-            m.getChannel().sendMessage(msg);
+            MessageUtil.reply(m, msg);
         }).acceptPriv(Command.Priv.BOTADMIN));
         commands.put("uptime", new CommandWrapper("Prints the uptime... DUH!", (event, cfg) -> {
             MessageUtil.reply(event, "Running for " + MiscUtil.getUptime());
@@ -369,7 +369,11 @@ public class CommandRegistry extends ListenerAdapter {
         commands.put("rip", new CommandWrapper("Rest in Pieces", (e, cfg) -> {
             String[] args = MessageUtil.getArgs(e, cfg, 2);
             if(args.length == 1) {
-                e.getChannel().sendMessage("https://cdn.discordapp.com/attachments/116705171312082950/120787560988540929/rip2.png");
+                MessageUtil.reply(e, "https://cdn.discordapp.com/attachments/116705171312082950/120787560988540929/rip2.png", false);
+                return;
+            }
+            if(!e.isPrivate() && !e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.MESSAGE_ATTACH_FILES)) {
+                MessageUtil.reply(e, "I cannot upload files here!");
                 return;
             }
             String text;
@@ -467,7 +471,7 @@ public class CommandRegistry extends ListenerAdapter {
                     "Commands seen:", cmdCount,
                     "Version rev:", Statics.VERSION,
                     "Changes of current version:", Statics.CHANGES);
-            e.getChannel().sendMessage(new MessageBuilder().appendString("Stats for KanzeBot:\n")
+            MessageUtil.reply(e, new MessageBuilder().appendString("Stats for KanzeBot:\n")
                     .appendCodeBlock(stats, "").build());
         }));
         commands.put("blacklist", new CommandWrapper("Blocks users from accessing features of this bot.\n" +
@@ -640,24 +644,23 @@ public class CommandRegistry extends ListenerAdapter {
         if(blacklist.contains(event.getAuthor().getId())) {
             return;
         }
-        if((event.getMessage().isPrivate() || event.getMessage().getMentionedUsers().contains(event.getJDA().getSelfInfo()))) {
+        MessageChannel channel = event.isPrivate() ? event.getJDA().getPrivateChannelById(event.getMessage().getChannelId()) :
+                event.getJDA().getTextChannelById(event.getMessage().getChannelId());
+        if((event.isPrivate() || event.getMessage().getMentionedUsers().contains(event.getJDA().getSelfInfo()))) {
             if(event.getJDA().getGuildById(event.getInvite().getGuildId()) != null) {
-                if(event.getMessage().isPrivate()) {
-                    event.getJDA().getPrivateChannelById(event.getMessage().getChannelId()).sendMessage("Already in that Server!");
-                } else {
-                    event.getJDA().getTextChannelById(event.getMessage().getChannelId()).sendMessage("Already in that Server!");
-                }
+                try {
+                    channel.sendMessage("Already in that Server!");
+                } catch (RuntimeException ignored) {} //no write perms or blocked pm
                 return;
             }
-            InviteUtil.join(event.getInvite(), event.getJDA(), null);
-            String text = "Joined Guild! Server owner should probably configure me via the config command\nDefault prefix is: "
-                    + ServerConfig.DEFAULT_PREFIX + "\nThe owner can reset it by calling -kbreset";
             Statics.LOG.info("Joining Guild " + event.getInvite().getGuildName() + " via invite of " + event.getAuthor().getUsername());
-            if(event.getMessage().isPrivate()) {
-                event.getJDA().getPrivateChannelById(event.getMessage().getChannelId()).sendMessage(text);
-            } else {
-                event.getJDA().getTextChannelById(event.getMessage().getChannelId()).sendMessage(text);
-            }
+            InviteUtil.join(event.getInvite(), event.getJDA(), guild -> {
+                String text = "Joined Guild " + guild.getName() + "! Server owner should probably configure me via the config command\nDefault prefix is: "
+                        + ServerConfig.DEFAULT_PREFIX + "\nThe owner can reset it by calling -kbreset";
+                try {
+                    channel.sendMessage(text);
+                } catch(RuntimeException ignored) {} //no write perms or blocked pm
+            });
         }
     }
 
@@ -871,11 +874,12 @@ public class CommandRegistry extends ListenerAdapter {
         public void run() {
             int sets = 0;
             List<Message> messages = history.retrieve();
-            message = channel.sendMessage(message);
+            message = channel.checkPermission(channel.getJDA().getSelfInfo(), Permission.MESSAGE_WRITE) ? channel.sendMessage(message) : null;
             while(messages != null) {
                 if(sets++ > 10) {
                     try {
-                        message.updateMessage(message.getRawContent() + "Reached cap (1000 Messages)!");
+                        if(message != null)
+                            message.updateMessage(message.getRawContent() + "Reached cap (1000 Messages)!");
                     } catch(Exception ignored) {}
                     return;
                 }
@@ -894,7 +898,8 @@ public class CommandRegistry extends ListenerAdapter {
                     messages = history.retrieve();
             }
             try {
-                message.updateMessage(message.getRawContent() + "done!");
+                if(message != null)
+                    message.updateMessage(message.getRawContent() + "done!");
             } catch(Exception ignored) {}
         }
     }
