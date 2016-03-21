@@ -3,6 +3,8 @@ package com.kantenkugel.discordbot.commands;
 import com.kantenkugel.discordbot.Statics;
 import com.kantenkugel.discordbot.modules.Module;
 import com.kantenkugel.discordbot.util.*;
+import com.mashape.unirest.http.Unirest;
+import com.mashape.unirest.http.exceptions.UnirestException;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.MessageBuilder;
 import net.dv8tion.jda.MessageHistory;
@@ -32,10 +34,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
@@ -46,7 +44,6 @@ import java.util.List;
  * Created by Michael Ritter on 06.12.2015.
  */
 public class CommandRegistry extends ListenerAdapter {
-    private static final Path blacklistFile = Paths.get("blacklist.json");
     private static final Map<String, Command> commands = new HashMap<>();
     private static final Map<String, ServerConfig> serverConfigs = new HashMap<>();
     private static final Set<String> blacklist = new HashSet<>();
@@ -61,16 +58,11 @@ public class CommandRegistry extends ListenerAdapter {
     private static final ScriptEngine engine = new ScriptEngineManager().getEngineByName("Nashorn");
 
     public static void init() {
-        try {
-            if(!Files.exists(blacklistFile))
-                Files.write(blacklistFile, "[]".getBytes(StandardCharsets.UTF_8));
-            JSONArray blacklistArr = new JSONArray(StringUtils.join(Files.readAllLines(blacklistFile, StandardCharsets.UTF_8), ""));
-            for(int i = 0; i < blacklistArr.length(); i++) {
-                blacklist.add(blacklistArr.getString(i));
-            }
-        } catch(IOException e) {
-            e.printStackTrace();
+        JSONArray blacklistArr = BotConfig.get("blacklist", new JSONArray());
+        for(int i = 0; i < blacklistArr.length(); i++) {
+            blacklist.add(blacklistArr.getString(i));
         }
+
         loadCommands();
         engine.put("commands", commands);
         engine.put("rng", new Random());
@@ -525,13 +517,10 @@ public class CommandRegistry extends ListenerAdapter {
                 default:
                     return;
             }
-            try {
-                JSONArray blacklistArr = new JSONArray();
-                blacklist.forEach(blacklistArr::put);
-                Files.write(blacklistFile, Arrays.asList(blacklistArr.toString(4).split("\n")));
-            } catch(IOException ex) {
-                ex.printStackTrace();
-            }
+            JSONArray blacklistArr = new JSONArray();
+            blacklist.forEach(blacklistArr::put);
+            BotConfig.set("blacklist", blacklistArr);
+
             MessageUtil.reply(e, "User(s) added/removed from blacklist!");
         }).acceptPriv(Command.Priv.BOTADMIN));
         commands.put("botinfo", new CommandWrapper("Shows some basic info about this Bot", e -> {
@@ -624,19 +613,22 @@ public class CommandRegistry extends ListenerAdapter {
         for(Guild guild : jda.getGuilds()) {
             serverConfigs.put(guild.getId(), new ServerConfig(jda, guild));
         }
-        Statics.botOwner = jda.getUserById("122758889815932930");
+        Statics.botOwner = jda.getUserById(BotConfig.get("ownerId"));
+        updateCarbon();
     }
 
     @Override
     public void onGuildJoin(GuildJoinEvent event) {
         Statics.LOG.info("Joined Guild " + event.getGuild().getName());
         serverConfigs.put(event.getGuild().getId(), new ServerConfig(event.getJDA(), event.getGuild()));
+        updateCarbon();
     }
 
     @Override
     public void onGuildLeave(GuildLeaveEvent event) {
         Statics.LOG.info("Left Guild " + event.getGuild().getName());
         serverConfigs.remove(event.getGuild().getId());
+        updateCarbon();
     }
 
     @Override
@@ -852,6 +844,18 @@ public class CommandRegistry extends ListenerAdapter {
                 default:
                     MessageUtil.reply(event, "Invalid syntax");
             }
+        }
+    }
+
+    private static void updateCarbon() {
+        String carbonKey = BotConfig.get("carbonKey");
+        if(carbonKey == null || carbonKey.trim().isEmpty()) {
+            return;
+        }
+        try {
+            Unirest.post("https://www.carbonitex.net/discord/data/botdata.php").field("key", carbonKey).field("servercount", Statics.jdaInstance.getGuilds().size()).asString();
+        } catch(UnirestException e) {
+            e.printStackTrace();
         }
     }
 

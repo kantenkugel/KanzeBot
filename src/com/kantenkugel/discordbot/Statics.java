@@ -1,12 +1,13 @@
 package com.kantenkugel.discordbot;
 
+import com.kantenkugel.discordbot.util.BotConfig;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.JDAInfo;
 import net.dv8tion.jda.entities.User;
 import net.dv8tion.jda.utils.SimpleLog;
 
 public class Statics {
-    public static final SimpleLog LOG = SimpleLog.getLog("KanzeBot");
+    public static final SimpleLog LOG = SimpleLog.getLog(BotConfig.get("logname", "KanzeBot"));
     public static long START_TIME = System.currentTimeMillis();
 
     public static User botOwner;

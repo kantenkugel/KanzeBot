@@ -2,6 +2,7 @@ package com.kantenkugel.discordbot;
 
 import com.kantenkugel.discordbot.commands.CommandRegistry;
 import com.kantenkugel.discordbot.modules.Module;
+import com.kantenkugel.discordbot.util.BotConfig;
 import com.kantenkugel.discordbot.util.UpdateValidator;
 import com.kantenkugel.discordbot.util.UpdateWatcher;
 import net.dv8tion.jda.JDABuilder;
@@ -35,6 +36,14 @@ public class Main {
         if(args.length < 5) {
             System.out.println("Missing arguments!");
             return;
+        }
+
+        if(!BotConfig.load()) {
+            BotConfig.set("ownerId", "");
+            BotConfig.set("logname", "KanzeBot");
+            BotConfig.set("carbonKey", "");
+            System.out.println("Bot config created. Please populate it before restarting the Bot");
+            System.exit(Statics.NORMAL_EXIT_CODE);
         }
 
         try {

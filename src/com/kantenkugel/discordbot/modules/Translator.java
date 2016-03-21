@@ -2,22 +2,17 @@ package com.kantenkugel.discordbot.modules;
 
 import com.kantenkugel.discordbot.commands.Command;
 import com.kantenkugel.discordbot.commands.CommandWrapper;
+import com.kantenkugel.discordbot.util.BotConfig;
 import com.kantenkugel.discordbot.util.MessageUtil;
 import com.kantenkugel.discordbot.util.ServerConfig;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.events.message.MessageReceivedEvent;
-import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -44,22 +39,9 @@ public class Translator extends Module {
     public void init(JDA jda, ServerConfig cfg) {
         if(!initialized) {
             initialized = true;
-            Path config = Paths.get("translate_config.json");
-            if(Files.exists(config)) {
-                try {
-                    JSONObject c = new JSONObject(new String(Files.readAllBytes(config), StandardCharsets.UTF_8));
-                    clientId = c.getString("clientId");
-                    clientSecret = c.getString("clientSecret");
-                } catch(IOException | JSONException e) {
-                    e.printStackTrace();
-                }
-            } else {
-                try {
-                    Files.write(config, new JSONObject().put("clientId", "").put("clientSecret", "").toString(4).getBytes(StandardCharsets.UTF_8));
-                } catch(IOException e) {
-                    e.printStackTrace();
-                }
-            }
+            JSONObject c = BotConfig.get("translate", new JSONObject().put("clientId", "").put("clientSecret", ""));
+            clientId = c.getString("clientId");
+            clientSecret = c.getString("clientSecret");
         }
     }
 
