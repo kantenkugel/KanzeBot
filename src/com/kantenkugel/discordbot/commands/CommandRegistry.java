@@ -523,7 +523,7 @@ public class CommandRegistry extends ListenerAdapter {
 
             MessageUtil.reply(e, "User(s) added/removed from blacklist!");
         }).acceptPriv(Command.Priv.BOTADMIN));
-        commands.put("botinfo", new CommandWrapper("Shows some basic info about this Bot", e -> {
+        commands.put("about", new CommandWrapper("Shows some basic info about this Bot", e -> {
             MessageUtil.reply(e, String.format("```\n" + e.getJDA().getSelfInfo().getUsername() + " info:" +
                             "\n%-16s: %s\n%-16s: %s\n%-16s: %s\n%-16s: %s\n%-16s: %s\n%-16s: %s\n```",
                     "Bot-ID", e.getJDA().getSelfInfo().getId(), "Owner", Statics.botOwner.getUsername() + '#' + Statics.botOwner.getDiscriminator(),
