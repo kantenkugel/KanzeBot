@@ -43,4 +43,8 @@ public class MessageUtil {
         return event.getMessage().getContent().substring(cfg.getPrefix().length()).split("\\s+");
     }
 
+    public static String strip(String in) {
+        return in.replace("@everyone", "@ everyone");
+    }
+
 }
