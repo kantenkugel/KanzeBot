@@ -14,6 +14,7 @@ import net.dv8tion.jda.events.ReconnectedEvent;
 import net.dv8tion.jda.events.guild.GuildJoinEvent;
 import net.dv8tion.jda.events.guild.GuildLeaveEvent;
 import net.dv8tion.jda.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.exceptions.BlockedException;
 import net.dv8tion.jda.hooks.ListenerAdapter;
 import net.dv8tion.jda.managers.GuildManager;
 import net.dv8tion.jda.managers.PermissionOverrideManager;
@@ -45,7 +46,6 @@ import java.util.List;
  * Created by Michael Ritter on 06.12.2015.
  */
 public class CommandRegistry extends ListenerAdapter {
-    public static long START_TIME = System.currentTimeMillis();
     private static final Path blacklistFile = Paths.get("blacklist.json");
     private static final Map<String, Command> commands = new HashMap<>();
     private static final Map<String, ServerConfig> serverConfigs = new HashMap<>();
@@ -178,14 +178,18 @@ public class CommandRegistry extends ListenerAdapter {
             if(reduce.isPresent()) {
                 returned += "Available through modules:\n\t" + reduce.get() + "\n";
             }
-            m.getAuthor().getPrivateChannel().sendMessage("Commands available for " + (m.isPrivate() ? "PM" : "Guild " + m.getGuild().getName())
-                    + ":\n\n" + returned+"\n**NOTE**: you can type `help COMMAND` to get more detailed info about a specific command.");
-            if(m.isPrivate()) {
-                MessageUtil.reply(m, "In Guilds, my commands may be prefixed differently (standard prefix in guilds is -kb instead of !)\n" +
-                        "There are also 2 special commands: `-kbreset` resets the guild-prefix to default (-kb) and `-kbprefix` prints the current prefix of the guild. " +
-                        "These special commands work in every guild, independent of the configured prefix.");
-            } else {
-                MessageUtil.reply(m, "Help sent via PM.");
+            try {
+                m.getAuthor().getPrivateChannel().sendMessage("Commands available for " + (m.isPrivate() ? "PM" : "Guild " + m.getGuild().getName())
+                        + ":\n\n" + returned + "\n**NOTE**: you can type `help COMMAND` to get more detailed info about a specific command.");
+                if(m.isPrivate()) {
+                    MessageUtil.reply(m, "In Guilds, my commands may be prefixed differently (standard prefix in guilds is -kb instead of !)\n" +
+                            "There are also 2 special commands: `-kbreset` resets the guild-prefix to default (-kb) and `-kbprefix` prints the current prefix of the guild. " +
+                            "These special commands work in every guild, independent of the configured prefix.");
+                } else {
+                    MessageUtil.reply(m, "Help sent via PM.");
+                }
+            } catch(BlockedException ex) {
+                MessageUtil.reply(m, "Sorry, but you are blocking my PMs!");
             }
         }));
         commands.put("texts", new CommandWrapper("Shows all available text-commands. (to add/edit/remove them, call addcom/editcom/delcom [requires mod-status])", (m, cfg) -> {
@@ -309,11 +313,7 @@ public class CommandRegistry extends ListenerAdapter {
             } catch(Exception e) {
                 msg = new MessageBuilder().appendString(e.getMessage(), MessageBuilder.Formatting.BLOCK).build();
             }
-            if(m.isPrivate()) {
-                m.getPrivateChannel().sendMessage(msg);
-            } else {
-                m.getTextChannel().sendMessage(msg);
-            }
+            m.getChannel().sendMessage(msg);
         }).acceptPriv(Command.Priv.BOTADMIN));
         commands.put("uptime", new CommandWrapper("Prints the uptime... DUH!", (event, cfg) -> {
             MessageUtil.reply(event, "Running for " + MiscUtil.getUptime());

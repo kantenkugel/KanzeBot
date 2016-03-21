@@ -43,7 +43,7 @@ public class Main {
             e.printStackTrace();
         }
 
-        CommandRegistry.START_TIME = Long.parseLong(args[2]);
+        Statics.START_TIME = Long.parseLong(args[2]);
         Statics.VERSION = Integer.parseInt(args[4]);
 
         if(args.length > 5) {

@@ -17,15 +17,12 @@ public class MessageUtil {
     }
 
     public static void reply(MessageReceivedEvent event, String txt, boolean addName) {
-        if(event.isPrivate()) {
-            event.getPrivateChannel().sendMessage(txt);
-        } else {
-            MessageBuilder mb = new MessageBuilder();
-            if(addName) {
-                mb.appendString(event.getAuthor().getUsername()).appendString(": ");
-            }
-            event.getTextChannel().sendMessage(mb.appendString(txt).build());
+        MessageBuilder mb = new MessageBuilder();
+        if(!event.isPrivate() && addName) {
+            mb.appendString(event.getAuthor().getUsername()).appendString(": ");
         }
+        mb.appendString(txt);
+        event.getChannel().sendMessage(mb.build());
     }
 
     public static String[] getArgs(MessageReceivedEvent event, ServerConfig cfg, int limit) {

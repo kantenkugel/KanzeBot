@@ -1,7 +1,6 @@
 package com.kantenkugel.discordbot.util;
 
 import com.kantenkugel.discordbot.Statics;
-import com.kantenkugel.discordbot.commands.CommandRegistry;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.entities.impl.JDAImpl;
 
@@ -55,7 +54,7 @@ public class MiscUtil {
     }
 
     public static String getUptime() {
-        long diff = System.currentTimeMillis()- CommandRegistry.START_TIME;
+        long diff = System.currentTimeMillis()- Statics.START_TIME;
         diff = diff/1000; //to s
         long days = diff/86400;
         long hrs = (diff%86400)/3600;

@@ -48,6 +48,6 @@ public class UpdateWatcher extends Thread {
     }
 
     public static MessageChannel getChannel(JDA api) {
-        return api.getUserById("122758889815932930").getPrivateChannel();
+        return Statics.botOwner.getPrivateChannel();
     }
 }

@@ -7,6 +7,9 @@ import net.dv8tion.jda.utils.SimpleLog;
 
 public class Statics {
     public static final SimpleLog LOG = SimpleLog.getLog("KanzeBot");
+    public static long START_TIME = System.currentTimeMillis();
+
+    public static User botOwner;
 
     public static JDA jdaInstance;
 
@@ -14,8 +17,6 @@ public class Statics {
     public static String CHANGES;
 
     public static final String JDAVERSION = JDAInfo.VERSION;
-
-    public static User botOwner;
 
     public static final int UPDATE_EXIT_CODE = 20;
     public static final int NORMAL_EXIT_CODE = 21;
