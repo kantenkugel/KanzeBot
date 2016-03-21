@@ -694,7 +694,7 @@ public class CommandRegistry extends ListenerAdapter {
                 case "alloweveryone":
                     if(args.length == 2) {
                         reply(event, "This config changes if the bot can ping @everyone in this guild " +
-                                "(this affects primarily text-responses creaded by `addcom` and responses from the responder module)." +
+                                "(this affects primarily text-responses created by `addcom` and responses from the responder module)." +
                                 "\nIf allowEveryone is set to true, this bot can do @everyone." +
                                 "\nIf set to false, @everyone will always get escaped." +
                                 "\nallowEveryone is currently set to: " + cfg.isAllowEveryone() +
