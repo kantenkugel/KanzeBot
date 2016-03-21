@@ -47,7 +47,7 @@ public class Translator extends Module {
 
     @Override
     public void configure(String cfgString, MessageReceivedEvent event, ServerConfig cfg) {
-        MessageUtil.reply(event, "This module has no Configuration options!");
+        MessageUtil.reply(event, cfg, "This module has no Configuration options!");
     }
 
     @Override
@@ -67,9 +67,9 @@ public class Translator extends Module {
                 }
                 String translated = translate(language, text);
                 if(translated != null) {
-                    MessageUtil.reply(e, "Translated text: " + translated, false);
+                    MessageUtil.reply(e, cfg, "Translated text: " + translated, false);
                 } else {
-                    MessageUtil.reply(e, "Error translating!");
+                    MessageUtil.reply(e, cfg, "Error translating!");
                 }
             }
         }));

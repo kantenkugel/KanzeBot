@@ -79,7 +79,7 @@ public abstract class Module {
      * @return
      *      true, if further handling via commands should be stopped
      */
-    public boolean handle(MessageReceivedEvent event) { return false; }
+    public boolean handle(MessageReceivedEvent event, ServerConfig cfg) { return false; }
 
     /**
      * Called when the Guild-owner tries to configure this module.

@@ -36,7 +36,7 @@ public class Inviter extends Module {
 
     @Override
     public void configure(String cfgString, MessageReceivedEvent event, ServerConfig cfg) {
-        MessageUtil.reply(event, "This module can not be configured");
+        MessageUtil.reply(event, cfg, "This module can not be configured");
     }
 
     @Override
@@ -46,7 +46,7 @@ public class Inviter extends Module {
                 "**Or:** `invite Oauth-URL`", (e, cfg) -> {
             String[] args = MessageUtil.getArgs(e, cfg, 3);
             if(args.length != 2) {
-                MessageUtil.reply(e, "Invalid syntax!");
+                MessageUtil.reply(e, cfg, "Invalid syntax!");
                 return;
             }
             String app_id;
@@ -58,7 +58,7 @@ public class Inviter extends Module {
                     Long.parseLong(args[1]);
                     app_id = args[1];
                 } catch(NumberFormatException ex) {
-                    MessageUtil.reply(e, "Given argument is not a valid application-id");
+                    MessageUtil.reply(e, cfg, "Given argument is not a valid application-id");
                     return;
                 }
             }
@@ -66,9 +66,9 @@ public class Inviter extends Module {
             if(PermissionUtil.checkPermission(e.getJDA().getSelfInfo(), Permission.MANAGE_SERVER, e.getGuild())) {
                 ((JDAImpl) e.getJDA()).getRequester().post("https://discordapp.com/api/oauth2/authorize?client_id=" + app_id + "&scope=bot",
                         new JSONObject().put("guild_id", e.getGuild().getId()).put("permissions", 0).put("authorize", true));
-                MessageUtil.reply(e, "Given Bot was invited to this Guild");
+                MessageUtil.reply(e, cfg, "Given Bot was invited to this Guild");
             } else {
-                MessageUtil.reply(e, "This Bot is missing the MANAGE_SERVER permission to do this!");
+                MessageUtil.reply(e, cfg, "This Bot is missing the MANAGE_SERVER permission to do this!");
             }
         }));
         return commands;

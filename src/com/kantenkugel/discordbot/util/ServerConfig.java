@@ -20,7 +20,7 @@ import java.util.*;
 public class ServerConfig {
     public static final String DEFAULT_PREFIX = "-kb";
     private static final Path config_folder = Paths.get("configs");
-    private static final int CURR_VERSION = 4;
+    private static final int CURR_VERSION = 5;
 
     private final JDA api;
     private final Guild guild;
@@ -34,6 +34,7 @@ public class ServerConfig {
     private JSONObject moduleConfig;
     private String prefix = DEFAULT_PREFIX;
     private boolean restrictTexts = false;
+    private boolean allowEveryone = false;
 
     public ServerConfig(JDA api, Guild guild) {
         this.api = api;
@@ -50,6 +51,10 @@ public class ServerConfig {
         return restrictTexts;
     }
 
+    public boolean isAllowEveryone() {
+        return allowEveryone;
+    }
+
     public void setPrefix(String prefix) {
         this.prefix = prefix;
         save();
@@ -57,6 +62,11 @@ public class ServerConfig {
 
     public void setRestrictTexts(boolean restrictTexts) {
         this.restrictTexts = restrictTexts;
+        save();
+    }
+
+    public void setAllowEveryone(boolean allowEveryone) {
+        this.allowEveryone = allowEveryone;
         save();
     }
 
@@ -179,7 +189,8 @@ public class ServerConfig {
     public void save() {
         JSONObject config = new JSONObject()
                 .put("prefix", prefix)
-                .put("restrictTexts", restrictTexts);
+                .put("restrictTexts", restrictTexts)
+                .put("allowEveryone", allowEveryone);
 
         JSONArray arr = new JSONArray();
         for(User admin : admins) {
@@ -270,6 +281,7 @@ public class ServerConfig {
 
         prefix = config.getString("prefix");
         restrictTexts = config.getBoolean("restrictTexts");
+        allowEveryone = config.getBoolean("allowEveryone");
 
         moduleConfig = config.getJSONObject("moduleConfigs");
         enabledModules.clear();
@@ -305,6 +317,7 @@ public class ServerConfig {
                         .put("modRoles", new JSONArray())
                         .put("prefix", DEFAULT_PREFIX)
                         .put("restrictTexts", false)
+                        .put("allowEveryone", false)
                         .put("commands", new JSONObject())
                         .put("enabledModules", new JSONArray())
                         .put("moduleConfigs", new JSONObject());
@@ -339,6 +352,8 @@ public class ServerConfig {
                         }
                     }
                     conf.put("modRoles", newRoles);
+                case 4:
+                    conf.put("allowEveryone", false);
 
                     writeConfig(g.getId(), conf);
                     break;

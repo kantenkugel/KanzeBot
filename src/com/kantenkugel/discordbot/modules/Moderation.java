@@ -37,7 +37,7 @@ public class Moderation extends Module {
     @Override
     public void configure(String cfgString, MessageReceivedEvent event, ServerConfig cfg) {
         if(cfgString == null) {
-            MessageUtil.reply(event, "To add blacklisted words, use `add name [name]`, otherwise use `remove`\nTo change warnings before kick (current: "+maxWarns+"), use `warns NUM`\n" +
+            MessageUtil.reply(event, cfg, "To add blacklisted words, use `add name [name]`, otherwise use `remove`\nTo change warnings before kick (current: "+maxWarns+"), use `warns NUM`\n" +
                     "Blacklisted: " + (blacklisted.isEmpty() ? "-" : blacklisted.stream().reduce((s1, s2) -> s1 + ", " + s2).get()), false);
         }
         else {
@@ -45,27 +45,27 @@ public class Moderation extends Module {
             switch(parts[0]) {
                 case "add":
                     blacklisted.addAll(Arrays.asList(parts).subList(1, parts.length));
-                    MessageUtil.reply(event, "word(s) added");
+                    MessageUtil.reply(event, cfg, "word(s) added");
                     cfg.save();
                     break;
                 case "remove":
                     for(int i = 1; i < parts.length; i++) {
                         blacklisted.remove(parts[i]);
                     }
-                    MessageUtil.reply(event, "word(s) removed");
+                    MessageUtil.reply(event, cfg, "word(s) removed");
                     cfg.save();
                     break;
                 case "warns":
                     try {
                         maxWarns = Integer.parseInt(parts[1]);
-                        MessageUtil.reply(event, "Warnings edited");
+                        MessageUtil.reply(event, cfg, "Warnings edited");
                         cfg.save();
                     } catch(NumberFormatException ex) {
-                        MessageUtil.reply(event, "Misformatted number!");
+                        MessageUtil.reply(event, cfg, "Misformatted number!");
                     }
                     break;
                 default:
-                    MessageUtil.reply(event, "Invalid Syntax");
+                    MessageUtil.reply(event, cfg, "Invalid Syntax");
             }
         }
     }
@@ -100,7 +100,7 @@ public class Moderation extends Module {
     }
 
     @Override
-    public boolean handle(MessageReceivedEvent event) {
+    public boolean handle(MessageReceivedEvent event, ServerConfig cfg) {
         if(event.getAuthor() == event.getJDA().getSelfInfo() || servercfg.isMod(event.getAuthor())) {
             return false;
         }
@@ -117,12 +117,12 @@ public class Moderation extends Module {
             if(warns.inc() > maxWarns) {
                 try {
                     event.getGuild().getManager().ban(event.getAuthor(), 0);
-                    MessageUtil.reply(event, event.getAuthor().getUsername() + " got banned for using to many restricted words!", false);
+                    MessageUtil.reply(event, cfg, event.getAuthor().getUsername() + " got banned for using to many restricted words!", false);
                 } catch(PermissionException ignored) {
-                    MessageUtil.reply(event, "I would ban you if i could! (" + warns.get() + " warnings!)");
+                    MessageUtil.reply(event, cfg, "I would ban you if i could! (" + warns.get() + " warnings!)");
                 }
             } else {
-                MessageUtil.reply(event, "Oh no you didnt just write that! (warning " + warns.get() + ")");
+                MessageUtil.reply(event, cfg, "Oh no you didnt just write that! (warning " + warns.get() + ")");
             }
             return true;
         }

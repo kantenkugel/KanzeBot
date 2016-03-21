@@ -14,16 +14,20 @@ public class MessageUtil {
         return user.getId().equals("122758889815932930") || user.getId().equals("107562988810027008") || user.getId().equals("107490111414882304");
     }
 
-    public static boolean reply(MessageReceivedEvent event, String txt) {
-        return reply(event, txt, true);
+    public static boolean reply(MessageReceivedEvent event, ServerConfig config, String txt) {
+        return reply(event, config, txt, true);
     }
 
-    public static boolean reply(MessageReceivedEvent event, String txt, boolean addName) {
+    public static boolean reply(MessageReceivedEvent event, ServerConfig config, String txt, boolean addName) {
+        return reply(event, txt, addName, !config.isAllowEveryone());
+    }
+
+    public static boolean reply(MessageReceivedEvent event, String txt, boolean addName, boolean doStrip) {
         MessageBuilder mb = new MessageBuilder();
         if(!event.isPrivate() && addName) {
             mb.appendString(event.getAuthor().getUsername()).appendString(": ");
         }
-        mb.appendString(txt);
+        mb.appendString(doStrip ? strip(txt) : txt);
         return reply(event, mb.build());
     }
 
@@ -44,7 +48,7 @@ public class MessageUtil {
     }
 
     public static String strip(String in) {
-        return in.replace("@everyone", "@ everyone");
+        return in.replace("@everyone", "@\u180Eeveryone");
     }
 
 }

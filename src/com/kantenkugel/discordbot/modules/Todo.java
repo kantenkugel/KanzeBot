@@ -46,29 +46,29 @@ public class Todo extends Module {
     @Override
     public void configure(String cfgString, MessageReceivedEvent event, ServerConfig cfg) {
         if(cfgString == null) {
-            MessageUtil.reply(event, "**Config:** `channel channelname` to set the channel where the dodo-list should be built");
+            MessageUtil.reply(event, cfg, "**Config:** `channel channelname` to set the channel where the dodo-list should be built");
         } else {
             if(cfgString.startsWith("channel ")) {
                 if(event.getMessage().getMentionedChannels().size() > 0) {
                     TextChannel channel = event.getMessage().getMentionedChannels().get(0);
                     if(!channel.checkPermission(api.getSelfInfo(), Permission.MESSAGE_WRITE)) {
-                        MessageUtil.reply(event, "I do not have WRITE-Permission for that channel!");
+                        MessageUtil.reply(event, cfg, "I do not have WRITE-Permission for that channel!");
                         return;
                     }
                     changeChannel(channel.getId());
-                    MessageUtil.reply(event, "Set todo channel to " + channel.getName());
+                    MessageUtil.reply(event, cfg, "Set todo channel to " + channel.getName());
                     return;
                 }
                 Optional<TextChannel> any = event.getGuild().getTextChannels().parallelStream().filter(c -> c.getName().equals(cfgString.substring(8))).findAny();
                 if(any.isPresent()) {
                     if(!any.get().checkPermission(api.getSelfInfo(), Permission.MESSAGE_WRITE)) {
-                        MessageUtil.reply(event, "I do not have WRITE-Permission for that channel!");
+                        MessageUtil.reply(event, cfg, "I do not have WRITE-Permission for that channel!");
                         return;
                     }
                     changeChannel(any.get().getId());
-                    MessageUtil.reply(event, "Set todo channel to " + any.get().getName());
+                    MessageUtil.reply(event, cfg, "Set todo channel to " + any.get().getName());
                 } else {
-                    MessageUtil.reply(event, "Channel not found!");
+                    MessageUtil.reply(event, cfg, "Channel not found!");
                 }
             }
         }
@@ -79,7 +79,7 @@ public class Todo extends Module {
         HashMap<String, Command> cmds = new HashMap<>();
         cmds.put("todo", new CommandWrapper(getUsage(), (e, cfg) -> {
             if(channel == null) {
-                MessageUtil.reply(e, "Please configure a channel first (via `config` command - available only to Guild owner)");
+                MessageUtil.reply(e, cfg, "Please configure a channel first (via `config` command - available only to Guild owner)");
                 return;
             }
             String[] args = MessageUtil.getArgs(e, cfg, 2);
@@ -88,14 +88,14 @@ public class Todo extends Module {
                     try {
                         int num = Integer.parseInt(args[1].substring(1));
                         if(!toggle(num)) {
-                            MessageUtil.reply(e, "The todo-entry with that id doesn't exist!");
+                            MessageUtil.reply(e, cfg, "The todo-entry with that id doesn't exist!");
                         } else {
                             if(e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.MESSAGE_MANAGE)) {
                                 e.getMessage().deleteMessage();
                             }
                         }
                     } catch(NumberFormatException ex) {
-                        MessageUtil.reply(e, args[1].substring(1) + " is not a number!");
+                        MessageUtil.reply(e, cfg, args[1].substring(1) + " is not a number!");
                     }
                 } else if(args[1].equalsIgnoreCase("clear")) {
                     clear();
@@ -105,7 +105,7 @@ public class Todo extends Module {
                 }
                 return;
             }
-            MessageUtil.reply(e, getUsage());
+            MessageUtil.reply(e, cfg, getUsage());
         }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
         return cmds;
     }

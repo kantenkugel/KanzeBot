@@ -44,7 +44,7 @@ public class AutoRespond extends Module {
 
     @Override
     public void configure(String cfgString, MessageReceivedEvent event, ServerConfig cfg) {
-        MessageUtil.reply(event, intConfig(cfgString, cfg, event));
+        MessageUtil.reply(event, cfg, intConfig(cfgString, cfg, event));
     }
 
     @Override
@@ -52,7 +52,7 @@ public class AutoRespond extends Module {
         HashMap<String, Command> commands = new HashMap<>();
         commands.put("responder", new CommandWrapper("Used to configure the responder module.", (e, cfg) -> {
             String[] args = MessageUtil.getArgs(e, cfg, 2);
-            MessageUtil.reply(e, intConfig(args.length == 1 ? null : args[1], cfg, e));
+            MessageUtil.reply(e, cfg, intConfig(args.length == 1 ? null : args[1], cfg, e));
         }).acceptPrivate(false).acceptPriv(Command.Priv.MOD));
         return commands;
     }
@@ -97,7 +97,7 @@ public class AutoRespond extends Module {
     }
 
     @Override
-    public boolean handle(MessageReceivedEvent event) {
+    public boolean handle(MessageReceivedEvent event, ServerConfig cfg) {
         if(event.getAuthor() == event.getJDA().getSelfInfo() || (!channels.isEmpty() && !channels.contains(event.getTextChannel().getId()))
                 || event.getMessage().getContent().startsWith(servercfg.getPrefix())) {
             return false;
@@ -115,7 +115,7 @@ public class AutoRespond extends Module {
         if(response.isPresent()) {
             respondLog.info(String.format("[%s][%s] %s: %s\n\t->%s", event.getGuild().getName(), event.getTextChannel().getName(),
                     event.getAuthor().getUsername(), event.getMessage().getContent(), response.get()));
-            MessageUtil.reply(event, response.get());
+            MessageUtil.reply(event, cfg, response.get());
         }
         return false;
     }

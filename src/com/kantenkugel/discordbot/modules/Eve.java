@@ -37,24 +37,24 @@ public class Eve extends Module {
                 if(start == null) {
                     Set<SolarSystem> all = SolarSystem.getAll(split[1]);
                     if(all.size() == 0) {
-                        MessageUtil.reply(msg, "Start System not found!");
+                        MessageUtil.reply(msg, cfg, "Start System not found!");
                     } else {
-                        MessageUtil.reply(msg, "Start System not unique... Possible: " + getSystemList(all));
+                        MessageUtil.reply(msg, cfg, "Start System not unique... Possible: " + getSystemList(all));
                     }
                     unique = false;
                 }
                 if(end == null) {
                     Set<SolarSystem> all = SolarSystem.getAll(split[2]);
                     if(all.size() == 0) {
-                        MessageUtil.reply(msg, "End System not found!");
+                        MessageUtil.reply(msg, cfg, "End System not found!");
                     } else {
-                        MessageUtil.reply(msg, "End System not unique... Possible: " + getSystemList(all));
+                        MessageUtil.reply(msg, cfg, "End System not unique... Possible: " + getSystemList(all));
                     }
                     unique = false;
                 }
                 if(unique) {
                     JSONArray array = makeGetRequest("http://api.eve-central.com/api/route/from/" + start.id + "/to/" + end.id);
-                    MessageUtil.reply(msg, "There are " + array.length() + " jumps between " + start.name + " and " + end.name);
+                    MessageUtil.reply(msg, cfg, "There are " + array.length() + " jumps between " + start.name + " and " + end.name);
                 }
             }
         })));
@@ -66,9 +66,9 @@ public class Eve extends Module {
                 if(start == null) {
                     Set<SolarSystem> all = SolarSystem.getAll(split[1]);
                     if(all.size() == 0) {
-                        MessageUtil.reply(msg, "System not found!");
+                        MessageUtil.reply(msg, cfg, "System not found!");
                     } else {
-                        MessageUtil.reply(msg, "System not unique... Possible: " + getSystemList(all));
+                        MessageUtil.reply(msg, cfg, "System not unique... Possible: " + getSystemList(all));
                     }
                 } else {
                     SolarSystem closest = null;
@@ -81,7 +81,7 @@ public class Eve extends Module {
                         }
                     }
                     if(closest != null) {
-                        MessageUtil.reply(msg, "Closest Hub to " + start.name + " is " + closest.name + " with " + closestJumps + " jumps distance");
+                        MessageUtil.reply(msg, cfg, "Closest Hub to " + start.name + " is " + closest.name + " with " + closestJumps + " jumps distance");
                     }
                 }
             }
@@ -94,15 +94,15 @@ public class Eve extends Module {
                 if(i == null) {
                     Set<Item> all = Item.getAll(split[1]);
                     if(all.size() == 0) {
-                        MessageUtil.reply(msg, "Item not found!");
+                        MessageUtil.reply(msg, cfg, "Item not found!");
                     } else {
-                        MessageUtil.reply(msg, "Item not unique... Possible: " + getItemList(all));
+                        MessageUtil.reply(msg, cfg, "Item not unique... Possible: " + getItemList(all));
                     }
                 } else {
                     JSONArray array = makeGetRequest("http://api.eve-central.com/api/marketstat/json?typeid=" + i.id + "&usesystem=" + SolarSystem.get("jita").id);
                     double maxbuy = array.getJSONObject(0).getJSONObject("buy").getDouble("max");
                     double minsell = array.getJSONObject(0).getJSONObject("sell").getDouble("min");
-                    MessageUtil.reply(msg, String.format("Stats for %s in Jita: Sell: %,.2f; Buy: %,.2f", i.name, minsell, maxbuy));
+                    MessageUtil.reply(msg, cfg, String.format("Stats for %s in Jita: Sell: %,.2f; Buy: %,.2f", i.name, minsell, maxbuy));
                 }
             }
         })));
@@ -115,9 +115,9 @@ public class Eve extends Module {
                 if(i == null) {
                     Set<Item> all = Item.getAll(split[1]);
                     if(all.size() == 0) {
-                        MessageUtil.reply(msg, "Item not found!");
+                        MessageUtil.reply(msg, cfg, "Item not found!");
                     } else {
-                        MessageUtil.reply(msg, "Item not unique... Possible: " + getItemList(all));
+                        MessageUtil.reply(msg, cfg, "Item not unique... Possible: " + getItemList(all));
                     }
                     unique = false;
                 }
@@ -125,9 +125,9 @@ public class Eve extends Module {
                 if(sys == null) {
                     Set<SolarSystem> all = SolarSystem.getAll(split[2]);
                     if(all.size() == 0) {
-                        MessageUtil.reply(msg, "System not found!");
+                        MessageUtil.reply(msg, cfg, "System not found!");
                     } else {
-                        MessageUtil.reply(msg, "System not unique... Possible: " + getSystemList(all));
+                        MessageUtil.reply(msg, cfg, "System not unique... Possible: " + getSystemList(all));
                     }
                     unique = false;
                 }
@@ -135,7 +135,7 @@ public class Eve extends Module {
                     JSONArray array = makeGetRequest("http://api.eve-central.com/api/marketstat/json?typeid=" + i.id + "&usesystem=" + sys.id);
                     double maxbuy = array.getJSONObject(0).getJSONObject("buy").getDouble("max");
                     double minsell = array.getJSONObject(0).getJSONObject("sell").getDouble("min");
-                    MessageUtil.reply(msg, String.format("Stats for %s in %s: Sell: %,.2f; Buy: %,.2f", i.name, sys.name, minsell, maxbuy));
+                    MessageUtil.reply(msg, cfg, String.format("Stats for %s in %s: Sell: %,.2f; Buy: %,.2f", i.name, sys.name, minsell, maxbuy));
                 }
             }
         })));
@@ -146,13 +146,13 @@ public class Eve extends Module {
     public void configure(String cfgString, MessageReceivedEvent event, ServerConfig cfg) {
         if(cfgString == null) {
             Optional<String> chans = event.getGuild().getTextChannels().stream().filter(c -> availableChats.contains(c.getId())).map(Channel::getName).reduce((s1, s2) -> s1 + ", " + s2);
-            MessageUtil.reply(event, "Use addChannel/removeChannel CHANNELNAME to add/remove channels to whitelist"
+            MessageUtil.reply(event, cfg, "Use addChannel/removeChannel CHANNELNAME to add/remove channels to whitelist"
                     + "\nCurrent channels: " + (chans.isPresent() ? chans.get() : "All"));
             return;
         }
         String[] split = cfgString.toLowerCase().split("\\s+", 2);
         if(split.length != 2) {
-            MessageUtil.reply(event, "Invalid Syntax");
+            MessageUtil.reply(event, cfg, "Invalid Syntax");
         } else {
             Optional<TextChannel> chan = event.getGuild().getTextChannels().stream().filter(c -> c.getName().toLowerCase().equals(split[1])).findAny();
             if(split[0].equals("addchannel")) {
@@ -160,21 +160,21 @@ public class Eve extends Module {
                     availableChats.add(chan.get().getId());
                     updateConfig();
                     cfg.save();
-                    MessageUtil.reply(event, "Channel added");
+                    MessageUtil.reply(event, cfg, "Channel added");
                 } else {
-                    MessageUtil.reply(event, "Channel not found!");
+                    MessageUtil.reply(event, cfg, "Channel not found!");
                 }
             } else if(split[0].equals("removechannel")) {
                 if(chan.isPresent()) {
                     availableChats.remove(chan.get().getId());
                     updateConfig();
                     cfg.save();
-                    MessageUtil.reply(event, "Channel removed");
+                    MessageUtil.reply(event, cfg, "Channel removed");
                 } else {
-                    MessageUtil.reply(event, "Channel not found!");
+                    MessageUtil.reply(event, cfg, "Channel not found!");
                 }
             } else {
-                MessageUtil.reply(event, "Invalid Syntax");
+                MessageUtil.reply(event, cfg, "Invalid Syntax");
             }
         }
     }

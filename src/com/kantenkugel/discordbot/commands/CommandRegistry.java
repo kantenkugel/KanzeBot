@@ -91,15 +91,15 @@ public class CommandRegistry extends ListenerAdapter {
             String[] args = MessageUtil.getArgs(m, cfg, 3);
             if(args.length == 3) {
                 if(commands.containsKey(args[1].toLowerCase())) {
-                    reply(m, "Command " + args[1] + " is reserved");
+                    reply(m, cfg, "Command " + args[1] + " is reserved");
                 } else {
                     Map<String, String> textCommands = cfg.getTextCommands();
                     if(textCommands.containsKey(args[1].toLowerCase())) {
-                        reply(m, "Command " + args[1] + " is already defined, edit it with !editcom");
+                        reply(m, cfg, "Command " + args[1] + " is already defined, edit it with !editcom");
                     } else {
                         textCommands.put(args[1].toLowerCase(), args[2]);
                         cfg.save();
-                        reply(m, "Command " + args[1].toLowerCase() + " was created!");
+                        reply(m, cfg, "Command " + args[1].toLowerCase() + " was created!");
                     }
                 }
             }
@@ -112,10 +112,10 @@ public class CommandRegistry extends ListenerAdapter {
                 if(textCommands.containsKey(args[1].toLowerCase())) {
                     textCommands.put(args[1].toLowerCase(), args[2]);
                     cfg.save();
-                    reply(m, "Command " + args[1].toLowerCase() + " was edited!");
+                    reply(m, cfg, "Command " + args[1].toLowerCase() + " was edited!");
                     return;
                 }
-                reply(m, "Command " + args[1] + " is not defined");
+                reply(m, cfg, "Command " + args[1] + " is not defined");
             }
         }).acceptPriv(Command.Priv.MOD).acceptPrivate(false));
         commands.put("delcom", new CommandWrapper("Deletes a already existing text-command (see command \"`texts`\").\n" +
@@ -126,10 +126,10 @@ public class CommandRegistry extends ListenerAdapter {
                 if(textCommands.containsKey(args[1].toLowerCase())) {
                     textCommands.remove(args[1].toLowerCase());
                     cfg.save();
-                    reply(m, "Command " + args[1].toLowerCase() + " was removed!");
+                    reply(m, cfg, "Command " + args[1].toLowerCase() + " was removed!");
                     return;
                 }
-                reply(m, "Command " + args[1] + " is not defined");
+                reply(m, cfg, "Command " + args[1] + " is not defined");
             }
         }).acceptPriv(Command.Priv.MOD).acceptPrivate(false));
         commands.put("help", new CommandWrapper("HELP ME WITH HELP", (m, cfg) -> {
@@ -140,9 +140,9 @@ public class CommandRegistry extends ListenerAdapter {
                     command = cfg.getCommands().get(args[1].toLowerCase());
                 }
                 if(command == null || !command.isAvailable(m, cfg)) {
-                    reply(m, "Provided Command does not exist or is not available to you!");
+                    reply(m, cfg, "Provided Command does not exist or is not available to you!");
                 } else {
-                    reply(m, "Help for " + args[1].toLowerCase() + ":\n" + command.getDescription(), false);
+                    reply(m, cfg, "Help for " + args[1].toLowerCase() + ":\n" + command.getDescription(), false);
                 }
                 return;
             }
@@ -176,56 +176,56 @@ public class CommandRegistry extends ListenerAdapter {
                 m.getAuthor().getPrivateChannel().sendMessage("Commands available for " + (m.isPrivate() ? "PM" : "Guild " + m.getGuild().getName())
                         + ":\n\n" + returned + "\n**NOTE**: you can type `help COMMAND` to get more detailed info about a specific command.");
                 if(m.isPrivate()) {
-                    reply(m, "In Guilds, my commands may be prefixed differently (standard prefix in guilds is -kb instead of !)\n" +
+                    reply(m, cfg, "In Guilds, my commands may be prefixed differently (standard prefix in guilds is -kb instead of !)\n" +
                             "There are also 2 special commands: `-kbreset` resets the guild-prefix to default (-kb) and `-kbprefix` prints the current prefix of the guild. " +
                             "These special commands work in every guild, independent of the configured prefix.");
                 } else {
-                    reply(m, "Help sent via PM.");
+                    reply(m, cfg, "Help sent via PM.");
                 }
             } catch(BlockedException ex) {
-                reply(m, "Sorry, but you are blocking my PMs!");
+                reply(m, cfg, "Sorry, but you are blocking my PMs!");
             }
         }));
         commands.put("texts", new CommandWrapper("Shows all available text-commands. (to add/edit/remove them, call addcom/editcom/delcom [requires mod-status])", (m, cfg) -> {
             Optional<String> reduce = cfg.getTextCommands().keySet().stream()
                     .map(key -> cfg.getPrefix() + key).sorted().reduce((s1, s2) -> s1 + ", " + s2);
             if(reduce.isPresent()) {
-                reply(m, "Defined Text-Commands: " + reduce.get());
+                reply(m, cfg, "Defined Text-Commands: " + reduce.get());
             } else {
-                reply(m, "No Text-Commands defined for this guild");
+                reply(m, cfg, "No Text-Commands defined for this guild");
             }
         }).acceptCustom((m, cfg) -> !m.isPrivate() && (!cfg.isRestrictTexts() || cfg.isMod(m.getAuthor()))));
         commands.put("clear", new CommandWrapper("Clears messages newer than given time.\n" +
                 "Usage: `clear [xh][ym][zs] [@Mention] [@Mention]` with x,y,z being integers and defining the hours, minutes and seconds to clear (at least one of those must be present)" +
                 " and optional Mentions to specify that only messages of these users should be cleared.\nThis will clear a max of 1000 messages at once.", (m, cfg) -> {
             if(!m.getTextChannel().checkPermission(m.getJDA().getSelfInfo(), Permission.MESSAGE_MANAGE)) {
-                reply(m, "I do not have permissions!");
+                reply(m, cfg, "I do not have permissions!");
                 return;
             }
             String[] args = MessageUtil.getArgs(m, cfg, 3);
             if(args.length < 2) {
-                reply(m, "Please provide a time-span to delete!");
+                reply(m, cfg, "Please provide a time-span to delete!");
                 return;
             }
             OffsetDateTime clearTo = MiscUtil.getOffsettedTime(args[1]);
             if(clearTo == null) {
-                reply(m, "Incorrect time range!");
+                reply(m, cfg, "Incorrect time range!");
                 return;
             }
             String msg = "Deleting messages sent within the last " + args[1] + "... ";
             List<User> mentioned = m.getMessage().getMentionedUsers();
             if(!TaskHelper.start("clear" + m.getTextChannel().getId(), new ClearRunner(m.getTextChannel(), clearTo, mentioned, msg))) {
-                reply(m, "There is already a clear-task running for this Channel!");
+                reply(m, cfg, "There is already a clear-task running for this Channel!");
             }
         }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
         commands.put("kick", new CommandWrapper("Kicks one or more Users from this Guild.\n" +
                 "Usage: `kick @mention [@mention ...]`", (e, cfg) -> {
             if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.KICK_MEMBERS)) {
-                reply(e, "I do not have permissions!");
+                reply(e, cfg, "I do not have permissions!");
                 return;
             }
             if(e.getMessage().getMentionedUsers().size() == 0) {
-                reply(e, "Please add the user(s) to kick via mentions");
+                reply(e, cfg, "Please add the user(s) to kick via mentions");
                 return;
             }
             String notKicked = "";
@@ -236,16 +236,16 @@ public class CommandRegistry extends ListenerAdapter {
                     e.getGuild().getManager().kick(user);
                 }
             }
-            reply(e, notKicked.isEmpty() ? "User(s) kicked" : "Following user(s) could not be kicked (mod): " + notKicked.substring(0, notKicked.length() - 2));
+            reply(e, cfg, notKicked.isEmpty() ? "User(s) kicked" : "Following user(s) could not be kicked (mod): " + notKicked.substring(0, notKicked.length() - 2));
         }).acceptPrivate(false).acceptPriv(Command.Priv.MOD));
         commands.put("ban", new CommandWrapper("Bans one or more Users from this Guild.\n" +
                 "Usage: `ban @mention [@mention ...]`", (e, cfg) -> {
             if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.BAN_MEMBERS)) {
-                reply(e, "I do not have permissions!");
+                reply(e, cfg, "I do not have permissions!");
                 return;
             }
             if(e.getMessage().getMentionedUsers().size() == 0) {
-                reply(e, "Please add the user(s) to ban via mentions");
+                reply(e, cfg, "Please add the user(s) to ban via mentions");
                 return;
             }
             String notBanned = "";
@@ -256,17 +256,17 @@ public class CommandRegistry extends ListenerAdapter {
                     e.getGuild().getManager().ban(user, 0);
                 }
             }
-            reply(e, notBanned.isEmpty() ? "User(s) banned" : "Following user(s) could not be banned (admin): " + notBanned.substring(0, notBanned.length() - 2));
+            reply(e, cfg, notBanned.isEmpty() ? "User(s) banned" : "Following user(s) could not be banned (admin): " + notBanned.substring(0, notBanned.length() - 2));
         }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
         commands.put("unban", new CommandWrapper("Unbans one or more Users from this Guild. You need their Id to do that (use command \"`bans`\" to look them up).\n" +
                 "Usage: `unban Id [Id ...]`", (e, cfg) -> {
             if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.BAN_MEMBERS)) {
-                reply(e, "I do not have permissions!");
+                reply(e, cfg, "I do not have permissions!");
                 return;
             }
             String[] args = MessageUtil.getArgs(e, cfg);
             if(args.length < 3) {
-                reply(e, "Please provide the Ids of users to unban (get them by calling the bans command)");
+                reply(e, cfg, "Please provide the Ids of users to unban (get them by calling the bans command)");
             }
             GuildManager manager = e.getGuild().getManager();
             Map<String, User> idMap = new HashMap<>();
@@ -279,18 +279,18 @@ public class CommandRegistry extends ListenerAdapter {
                     unbanned.add(user.getUsername());
                 }
             }
-            reply(e, "Following users got unbanned: " + (unbanned.isEmpty() ? "None! (did you provide Ids?)" : StringUtils.join(unbanned, ", ")));
+            reply(e, cfg, "Following users got unbanned: " + (unbanned.isEmpty() ? "None! (did you provide Ids?)" : StringUtils.join(unbanned, ", ")));
         }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
         commands.put("bans", new CommandWrapper("Prints out all Users that were banned in this guild (with their id).", (e, cfg) -> {
             if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.BAN_MEMBERS)) {
-                reply(e, "I do not have permissions!");
+                reply(e, cfg, "I do not have permissions!");
                 return;
             }
             Optional<String> bans = e.getGuild().getManager().getBans().stream().map(u -> u.getUsername() + '(' + u.getId() + ')').reduce((s1, s2) -> s1 + ", " + s2);
             if(bans.isPresent()) {
-                reply(e, "Banned users: " + bans.get());
+                reply(e, cfg, "Banned users: " + bans.get());
             } else {
-                reply(e, "No Bans found for this Guild");
+                reply(e, cfg, "No Bans found for this Guild");
             }
         }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
         commands.put("eval", new CommandWrapper("Evaluates javascript code through the Rhino-interpreter. This will respond with whatever was __returned__ from the eval-script." +
@@ -310,20 +310,20 @@ public class CommandRegistry extends ListenerAdapter {
             reply(m, msg);
         }).acceptPriv(Command.Priv.BOTADMIN));
         commands.put("uptime", new CommandWrapper("Prints the uptime... DUH!", (event, cfg) -> {
-            reply(event, "Running for " + MiscUtil.getUptime());
+            reply(event, cfg, "Running for " + MiscUtil.getUptime());
         }));
         commands.put("shutdown", new CommandWrapper("Shuts down this bot. Be careful or Kantenkugel will kill you!", (msg, cfg) -> {
-            reply(msg, "OK, Bye!");
+            reply(msg, cfg, "OK, Bye!");
             MiscUtil.await(msg.getJDA(), MiscUtil::shutdown);
             msg.getJDA().shutdown();
         }).acceptPriv(Command.Priv.BOTADMIN));
         commands.put("restart", new CommandWrapper("Restarts this bot.", (msg, cfg) -> {
-            reply(msg, "OK, BRB!");
+            reply(msg, cfg, "OK, BRB!");
             MiscUtil.await(msg.getJDA(), MiscUtil::restart);
             msg.getJDA().shutdown();
         }).acceptPriv(Command.Priv.BOTADMIN));
         commands.put("update", new CommandWrapper("Updates this bot.", (msg, cfg) -> {
-            reply(msg, "OK, BRB!");
+            reply(msg, cfg, "OK, BRB!");
             MiscUtil.await(msg.getJDA(), MiscUtil::update);
             msg.getJDA().shutdown();
         }).acceptPriv(Command.Priv.BOTADMIN));
@@ -335,7 +335,7 @@ public class CommandRegistry extends ListenerAdapter {
                     "Avatar", event.getAuthor().getAvatarUrl()==null?"None":event.getAuthor().getAvatarUrl(),
                     "Name", event.getTextChannel().getName(), "ID", event.getTextChannel().getId(),
                     "Name", event.getGuild().getName(), "ID", event.getGuild().getId(), "Icon", event.getGuild().getIconUrl()==null?"None":event.getGuild().getIconUrl());
-            reply(event, text, false);
+            reply(event, cfg, text, false);
         }).acceptPrivate(false));
         commands.put("mentioned", new CommandWrapper("Looks for the last message in this Channel where you got mentioned.", (e, cfg) -> {
             MessageHistory messageHistory = new MessageHistory(e.getJDA(), e.getTextChannel());
@@ -343,31 +343,31 @@ public class CommandRegistry extends ListenerAdapter {
             for(int i = 0; i < 5; i++) {
                 List<Message> msgs = messageHistory.retrieve();
                 if(msgs == null) {
-                    reply(e, "You have never been mentioned in this channel before!");
+                    reply(e, cfg, "You have never been mentioned in this channel before!");
                     return;
                 }
                 for(Message msg : msgs) {
                     if((msg.getMentionedUsers().contains(user) || msg.mentionsEveryone()) && !msg.getContent().startsWith(cfg.getPrefix())) {
-                        reply(e, "Last mention of " + user.getUsername() + " was at " + msg.getTime().format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT, FormatStyle.SHORT)) + " from "
+                        reply(e, cfg, "Last mention of " + user.getUsername() + " was at " + msg.getTime().format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT, FormatStyle.SHORT)) + " from "
                                 + (msg.getAuthor() == null ? "-" : msg.getAuthor().getUsername()) + "\nContent: " + msg.getContent());
                         return;
                     }
                 }
                 if(msgs.size() < 100) {
-                    reply(e, "You have never been mentioned in this channel before!");
+                    reply(e, cfg, "You have never been mentioned in this channel before!");
                     return;
                 }
             }
-            reply(e, "Last mention is older than 500 messages!");
+            reply(e, cfg, "Last mention is older than 500 messages!");
         }).acceptPrivate(false));
         commands.put("rip", new CommandWrapper("Rest in Pieces", (e, cfg) -> {
             String[] args = MessageUtil.getArgs(e, cfg, 2);
             if(args.length == 1) {
-                reply(e, "https://cdn.discordapp.com/attachments/116705171312082950/120787560988540929/rip2.png", false);
+                reply(e, cfg, "https://cdn.discordapp.com/attachments/116705171312082950/120787560988540929/rip2.png", false);
                 return;
             }
             if(!e.isPrivate() && !e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.MESSAGE_ATTACH_FILES)) {
-                reply(e, "I cannot upload files here!");
+                reply(e, cfg, "I cannot upload files here!");
                 return;
             }
             String text;
@@ -409,17 +409,17 @@ public class CommandRegistry extends ListenerAdapter {
                 ImageIO.write(image, "png", tmpFile);
                 e.getChannel().sendFileAsync(tmpFile, null, mess -> tmpFile.delete());
             } catch(IOException e1) {
-                reply(e, "I made a Boo Boo!");
+                reply(e, cfg, "I made a Boo Boo!");
             }
         }));
         commands.put("silence", new CommandWrapper("Silences a given user in this channel (denies write-permission).\nUsage: `silence @Mention [@Mention]`", (e, cfg) -> {
             if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.MANAGE_PERMISSIONS)) {
-                reply(e, "I do not have permissions to modify other peoples Permissions in this channel!");
+                reply(e, cfg, "I do not have permissions to modify other peoples Permissions in this channel!");
                 return;
             }
             List<User> mentioned = e.getMessage().getMentionedUsers();
             if(mentioned.isEmpty()) {
-                reply(e, "Please mention at least one user");
+                reply(e, cfg, "Please mention at least one user");
                 return;
             }
             mentioned.stream().filter(user -> !cfg.isMod(user)).forEach(user -> {
@@ -431,16 +431,16 @@ public class CommandRegistry extends ListenerAdapter {
                 }
                 man.deny(Permission.MESSAGE_WRITE).update();
             });
-            reply(e, "Let there be Silence! :speak_no_evil:", false);
+            reply(e, cfg, "Let there be Silence! :speak_no_evil:", false);
         }).acceptPrivate(false).acceptPriv(Command.Priv.MOD));
         commands.put("unsilence", new CommandWrapper("Unsilences a previously silenced user in this channel (reallows write-ermission).\nUsage: `unsilence @Mention [@Mention]`", (e, cfg) -> {
             if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.MANAGE_PERMISSIONS)) {
-                reply(e, "I do not have permissions to modify other peoples Permissions in this channel!");
+                reply(e, cfg, "I do not have permissions to modify other peoples Permissions in this channel!");
                 return;
             }
             List<User> mentioned = e.getMessage().getMentionedUsers();
             if(mentioned.isEmpty()) {
-                reply(e, "Please mention at least one user");
+                reply(e, cfg, "Please mention at least one user");
                 return;
             }
             mentioned.stream().filter(user -> !cfg.isMod(user)).forEach(user -> {
@@ -454,7 +454,7 @@ public class CommandRegistry extends ListenerAdapter {
                     }
                 }
             });
-            reply(e, "HAH! Just joking... you can talk again... :speech_balloon:", false);
+            reply(e, cfg, "HAH! Just joking... you can talk again... :speech_balloon:", false);
         }).acceptPrivate(false).acceptPriv(Command.Priv.MOD));
         commands.put("stats", new CommandWrapper("Displays some stats about KanzeBot", (e, cfg) -> {
             String stats = String.format("%-15s%s\n%-15s%s\n%-15s%s\n%-15s%s\n%-15s%s\n%-15s%s\n\n%s\n%s",
@@ -473,7 +473,7 @@ public class CommandRegistry extends ListenerAdapter {
                 "Or: `blacklist show`", (e, cfg) -> {
             String[] args = MessageUtil.getArgs(e, cfg, 3);
             if(args.length == 1) {
-                reply(e, commands.get("blacklist").getDescription());
+                reply(e, cfg, commands.get("blacklist").getDescription());
                 return;
             }
             List<User> mentioned = e.getMessage().getMentionedUsers();
@@ -483,7 +483,7 @@ public class CommandRegistry extends ListenerAdapter {
                         if(args.length == 3) {
                             blacklist.add(args[2]);
                         } else {
-                            reply(e, commands.get("blacklist").getDescription());
+                            reply(e, cfg, commands.get("blacklist").getDescription());
                             return;
                         }
                     } else {
@@ -496,7 +496,7 @@ public class CommandRegistry extends ListenerAdapter {
                         if(args.length == 3) {
                             blacklist.remove(args[2]);
                         } else {
-                            reply(e, commands.get("blacklist").getDescription());
+                            reply(e, cfg, commands.get("blacklist").getDescription());
                             return;
                         }
                     } else {
@@ -512,9 +512,9 @@ public class CommandRegistry extends ListenerAdapter {
                         return userById.getUsername() + '(' + b + ')';
                     }).reduce((s1, s2) -> s1 + ", " + s2);
                     if(black.isPresent()) {
-                        reply(e, "Current blacklist: " + black.get(), false);
+                        reply(e, cfg, "Current blacklist: " + black.get(), false);
                     } else {
-                        reply(e, "Blacklist is empty", false);
+                        reply(e, cfg, "Blacklist is empty", false);
                     }
                 default:
                     return;
@@ -523,10 +523,10 @@ public class CommandRegistry extends ListenerAdapter {
             blacklist.forEach(blacklistArr::put);
             BotConfig.set("blacklist", blacklistArr);
 
-            reply(e, "User(s) added/removed from blacklist!");
+            reply(e, cfg, "User(s) added/removed from blacklist!");
         }).acceptPriv(Command.Priv.BOTADMIN));
-        commands.put("about", new CommandWrapper("Shows some basic info about this Bot", e -> {
-            reply(e, String.format("```\n" + e.getJDA().getSelfInfo().getUsername() + " info:" +
+        commands.put("about", new CommandWrapper("Shows some basic info about this Bot", (e, cfg) -> {
+            reply(e, cfg, String.format("```\n" + e.getJDA().getSelfInfo().getUsername() + " info:" +
                             "\n%-16s: %s\n%-16s: %s\n%-16s: %s\n%-16s: %s\n%-16s: %s\n%-16s: %s\n```",
                     "Bot-ID", e.getJDA().getSelfInfo().getId(), "Owner", Statics.botOwner.getUsername() + '#' + Statics.botOwner.getDiscriminator(),
                     "Owner-ID", Statics.botOwner.getId(), "Version-rev.", Statics.VERSION,
@@ -545,7 +545,7 @@ public class CommandRegistry extends ListenerAdapter {
             cfg = serverConfigs.get(event.getTextChannel().getGuild().getId());
             if(event.getMessage().getContent().equals("-kbreset") && cfg.isOwner(event.getAuthor())) {
                 cfg.setPrefix(ServerConfig.DEFAULT_PREFIX);
-                reply(event, "Prefix was reset to default (" + ServerConfig.DEFAULT_PREFIX + ")");
+                reply(event, cfg, "Prefix was reset to default (" + ServerConfig.DEFAULT_PREFIX + ")");
                 return;
             }
             if(event.getMessage().getMentionedUsers().contains(event.getJDA().getSelfInfo()) || event.getMessage().getMentionedUsers().contains(Statics.botOwner)) {
@@ -559,11 +559,11 @@ public class CommandRegistry extends ListenerAdapter {
         }
 
         if(event.getMessage().getContent().equals("-kbprefix")) {
-            reply(event, "Current command-prefix is: `" + cfg.getPrefix() + '`');
+            reply(event, cfg, "Current command-prefix is: `" + cfg.getPrefix() + '`');
             return;
         }
 
-        if(cfg.getModules().values().stream().map(m -> m.handle(event)).anyMatch(b -> b)) {
+        if(cfg.getModules().values().stream().map(m -> m.handle(event, cfg)).anyMatch(b -> b)) {
             return;
         }
 
@@ -593,7 +593,7 @@ public class CommandRegistry extends ListenerAdapter {
                 }
                 Map<String, String> textCommands = cfg.getTextCommands();
                 if(textCommands.containsKey(args[0])) {
-                    reply(event, textCommands.get(args[0]));
+                    reply(event, cfg, textCommands.get(args[0]));
                 }
             }
         }
@@ -661,7 +661,7 @@ public class CommandRegistry extends ListenerAdapter {
     private static void config(MessageReceivedEvent event, ServerConfig cfg) {
         String[] args = MessageUtil.getArgs(event, cfg);
         if(args.length == 1) {
-            reply(event, "Available subcommands: prefix, restrictTexts, leave, admins, mods, modules\nTo get more details, run " + cfg.getPrefix() + args[0] + " SUBCOMMAND");
+            reply(event, cfg, "Available subcommands: prefix, restrictTexts, leave, admins, mods, modules, allowEveryone\nTo get more details, run " + cfg.getPrefix() + args[0] + " SUBCOMMAND");
         } else if(args.length > 1) {
             String key = null;
             if(args.length > 2) {
@@ -670,30 +670,43 @@ public class CommandRegistry extends ListenerAdapter {
             switch(args[1].toLowerCase()) {
                 case "prefix":
                     if(args.length == 2) {
-                        reply(event, "This command modifies the prefix used to call commands of this bot." +
+                        reply(event, cfg, "This command modifies the prefix used to call commands of this bot." +
                                 "\nCurrent Prefix: `" + cfg.getPrefix() +
                                 "`\nTo change, call " + cfg.getPrefix() + args[0] + " " + args[1] + " PREFIX");
                     } else {
                         String prefix = MessageUtil.getArgs(event, cfg, 3)[2].toLowerCase();
                         cfg.setPrefix(prefix);
-                        reply(event, "Prefix changed to `" + prefix + '`');
+                        reply(event, cfg, "Prefix changed to `" + prefix + '`');
                     }
                     break;
                 case "restricttexts":
                     if(args.length == 2) {
-                        reply(event, "This command changes the behavior of text-commands." +
+                        reply(event, cfg, "This command changes the behavior of text-commands." +
                                 "\nIf restrictTexts is set to true, only mods can call the text-commands" +
                                 "\nIf set to false, everyone can (default)" +
                                 "\nrestrictTexts is currently set to: " + cfg.isRestrictTexts() +
                                 "\nTo change, call " + cfg.getPrefix() + args[0] + " " + args[1] + " true/false");
                     } else {
                         cfg.setRestrictTexts(Boolean.parseBoolean(args[2]));
-                        reply(event, "restrictTexts changed to " + cfg.isRestrictTexts());
+                        reply(event, cfg, "restrictTexts changed to " + cfg.isRestrictTexts());
+                    }
+                    break;
+                case "alloweveryone":
+                    if(args.length == 2) {
+                        reply(event, "This config changes if the bot can ping @everyone in this guild " +
+                                "(this affects primarily text-responses creaded by `addcom` and responses from the responder module)." +
+                                "\nIf allowEveryone is set to true, this bot can do @everyone." +
+                                "\nIf set to false, @everyone will always get escaped." +
+                                "\nallowEveryone is currently set to: " + cfg.isAllowEveryone() +
+                                "\nTo change, call " + cfg.getPrefix() + args[0] + " " + args[1] + " true/false", true, true);
+                    } else {
+                        cfg.setAllowEveryone(Boolean.parseBoolean(args[2]));
+                        reply(event, cfg, "allowEveryone changed to " + cfg.isAllowEveryone());
                     }
                     break;
                 case "leave":
                     if(args.length == 2) {
-                        reply(event, "This will make the bot leave this server!" +
+                        reply(event, cfg, "This will make the bot leave this server!" +
                                 "\nTo leave, call " + cfg.getPrefix() + args[0] + " " + args[1] + " YES");
                     } else if(args[2].equals("YES")) {
                         event.getGuild().getManager().leave();
@@ -701,32 +714,32 @@ public class CommandRegistry extends ListenerAdapter {
                     break;
                 case "admins":
                     if(args.length < 4) {
-                        reply(event, "This will add/remove Users and/or Roles to the admin-set" +
+                        reply(event, cfg, "This will add/remove Users and/or Roles to the admin-set" +
                                 "\nAdmins have access to everything mods can, + access to the clear command (may change)" +
                                 "\nUsage: " + cfg.getPrefix() + args[0] + " " + args[1] + " addUser/removeUser @MENTION" +
                                 "\nOr: " + cfg.getPrefix() + args[0] + " " + args[1] + " addRole/removeRole ROLENAME");
                         reply(event, "Current Admins:\n\tUsers: "
                                 + (cfg.getAdmins().size() == 0 ? "None" : cfg.getAdmins().stream().map(User::getUsername).reduce((s1, s2) -> s1 + ", " + s2).get())
                                 + "\n\tRoles: " + (cfg.getAdminRoles().size() == 0 ? "None" :
-                                MessageUtil.strip(cfg.getAdminRoles().stream().map(Role::getName).reduce((s1, s2) -> s1 + ", " + s2).get())));
+                                MessageUtil.strip(cfg.getAdminRoles().stream().map(Role::getName).reduce((s1, s2) -> s1 + ", " + s2).get())), true, true);
                     } else {
                         switch(key) {
                             case "adduser":
                                 event.getMessage().getMentionedUsers().forEach(cfg::addAdmin);
-                                reply(event, "User(s) added as admin(s)");
+                                reply(event, cfg, "User(s) added as admin(s)");
                                 break;
                             case "removeuser":
                                 event.getMessage().getMentionedUsers().forEach(cfg::removeAdmin);
-                                reply(event, "User(s) removed from admin(s)");
+                                reply(event, cfg, "User(s) removed from admin(s)");
                                 break;
                             case "addrole":
                                 String name = StringUtils.join(args, ' ', 3, args.length);
                                 Optional<Role> any = event.getGuild().getRoles().stream().filter(r -> r.getName().equalsIgnoreCase(name)).findAny();
                                 if(any.isPresent()) {
                                     cfg.addAdminRole(any.get());
-                                    reply(event, "Role " + MessageUtil.strip(any.get().getName()) + " added as admin role");
+                                    reply(event, "Role " + any.get().getName() + " added as admin role", true, true);
                                 } else {
-                                    reply(event, "No role matching given name found");
+                                    reply(event, cfg, "No role matching given name found");
                                 }
                                 break;
                             case "removerole":
@@ -734,44 +747,44 @@ public class CommandRegistry extends ListenerAdapter {
                                 Optional<Role> anyremove = event.getGuild().getRoles().stream().filter(r -> r.getName().equalsIgnoreCase(name2)).findAny();
                                 if(anyremove.isPresent()) {
                                     cfg.removeAdminRole(anyremove.get());
-                                    reply(event, "Role " + MessageUtil.strip(anyremove.get().getName()) + " removed from admin roles");
+                                    reply(event, "Role " + anyremove.get().getName() + " removed from admin roles", true, true);
                                 } else {
-                                    reply(event, "No role matching given name found");
+                                    reply(event, cfg, "No role matching given name found");
                                 }
                                 break;
                             default:
-                                reply(event, "Invalid syntax");
+                                reply(event, cfg, "Invalid syntax");
                         }
                     }
                     break;
                 case "mods":
                     if(args.length < 4) {
-                        reply(event, "This will add/remove Users and/or Roles to the mods-set" +
+                        reply(event, cfg, "This will add/remove Users and/or Roles to the mods-set" +
                                 "\nMods have access to adding, removing and editing text-commands, and also calling them, when they were locked via the restrictTexts config" +
                                 "\nUsage: " + cfg.getPrefix() + args[0] + " " + args[1] + " addUser/removeUser @MENTION" +
                                 "\nOr: " + cfg.getPrefix() + args[0] + " " + args[1] + " addRole/removeRole ROLENAME");
                         reply(event, "Current Mods:\n\tUsers: "
                                 + (cfg.getMods().size() == 0 ? "None" : cfg.getMods().stream().map(User::getUsername).reduce((s1, s2) -> s1 + ", " + s2).get())
                                 + "\n\tRoles: " + (cfg.getModRoles().size() == 0 ? "None" :
-                                MessageUtil.strip(cfg.getModRoles().stream().map(Role::getName).reduce((s1, s2) -> s1 + ", " + s2).get())));
+                                MessageUtil.strip(cfg.getModRoles().stream().map(Role::getName).reduce((s1, s2) -> s1 + ", " + s2).get())), true, true);
                     } else {
                         switch(key) {
                             case "adduser":
                                 event.getMessage().getMentionedUsers().forEach(cfg::addMod);
-                                reply(event, "User(s) added as mod(s)");
+                                reply(event, cfg, "User(s) added as mod(s)");
                                 break;
                             case "removeuser":
                                 event.getMessage().getMentionedUsers().forEach(cfg::removeMod);
-                                reply(event, "User(s) removed from mod(s)");
+                                reply(event, cfg, "User(s) removed from mod(s)");
                                 break;
                             case "addrole":
                                 String name = StringUtils.join(args, ' ', 3, args.length);
                                 Optional<Role> any = event.getGuild().getRoles().stream().filter(r -> r.getName().equalsIgnoreCase(name)).findAny();
                                 if(any.isPresent()) {
                                     cfg.addModRole(any.get());
-                                    reply(event, "Role " + MessageUtil.strip(any.get().getName()) + " added as mod role");
+                                    reply(event, "Role " + any.get().getName() + " added as mod role", true, true);
                                 } else {
-                                    reply(event, "No role matching given name found");
+                                    reply(event, cfg, "No role matching given name found");
                                 }
                                 break;
                             case "removerole":
@@ -779,22 +792,22 @@ public class CommandRegistry extends ListenerAdapter {
                                 Optional<Role> anyremove = event.getGuild().getRoles().stream().filter(r -> r.getName().equalsIgnoreCase(name2)).findAny();
                                 if(anyremove.isPresent()) {
                                     cfg.removeModRole(anyremove.get());
-                                    reply(event, "Role " + MessageUtil.strip(anyremove.get().getName()) + " removed from mod roles");
+                                    reply(event, "Role " + anyremove.get().getName() + " removed from mod roles", true, true);
                                 } else {
-                                    reply(event, "No role matching given name found");
+                                    reply(event, cfg, "No role matching given name found");
                                 }
                                 break;
                             default:
-                                reply(event, "Invalid syntax");
+                                reply(event, cfg, "Invalid syntax");
                         }
                     }
                     break;
                 case "modules":
                     if(args.length < 4) {
-                        reply(event, "This will add/remove/configure Modules on this Guild" +
+                        reply(event, cfg, "This will add/remove/configure Modules on this Guild" +
                                 "\nUsage: " + cfg.getPrefix() + args[0] + " " + args[1] + " enable/disable MODULE" +
                                 "\nOr: " + cfg.getPrefix() + args[0] + " " + args[1] + " configure MODULE\n");
-                        reply(event, "Currently enabled Modules:\n\t"
+                        reply(event, cfg, "Currently enabled Modules:\n\t"
                                 + (cfg.getModules().size() == 0 ? "None" : cfg.getModules().keySet().stream().reduce((s1, s2) -> s1 + ", " + s2).get())
                                 + "\nAvailable Modules:\n\t"
                                 + (Module.getModules().size() == 0 ? "None" : Module.getModules().keySet().stream().reduce((s1, s2) -> s1 + ", " + s2).get()));
@@ -808,24 +821,24 @@ public class CommandRegistry extends ListenerAdapter {
                                 if(Module.getModules().containsKey(val)) {
                                     if(!cfg.getModules().containsKey(val)) {
                                         cfg.addModule(val);
-                                        reply(event, "Module enabled");
+                                        reply(event, cfg, "Module enabled");
                                     } else {
-                                        reply(event, "Module was already enabled!");
+                                        reply(event, cfg, "Module was already enabled!");
                                     }
                                 } else {
-                                    reply(event, "Module does not exist");
+                                    reply(event, cfg, "Module does not exist");
                                 }
                                 break;
                             case "disable":
                                 if(Module.getModules().containsKey(val)) {
                                     if(cfg.getModules().containsKey(val)) {
                                         cfg.removeModule(val);
-                                        reply(event, "Module disabled");
+                                        reply(event, cfg, "Module disabled");
                                     } else {
-                                        reply(event, "Module was not enabled!");
+                                        reply(event, cfg, "Module was not enabled!");
                                     }
                                 } else {
-                                    reply(event, "Module does not exist");
+                                    reply(event, cfg, "Module does not exist");
                                 }
                                 break;
                             case "configure":
@@ -834,19 +847,19 @@ public class CommandRegistry extends ListenerAdapter {
                                         String cfgString = args.length > 4 ? StringUtils.join(args, ' ', 4, args.length) : null;
                                         cfg.getModules().get(val).configure(cfgString, event, cfg);
                                     } else {
-                                        reply(event, "Module was not enabled!");
+                                        reply(event, cfg, "Module was not enabled!");
                                     }
                                 } else {
-                                    reply(event, "Module does not exist");
+                                    reply(event, cfg, "Module does not exist");
                                 }
                                 break;
                             default:
-                                reply(event, "Invalid syntax");
+                                reply(event, cfg, "Invalid syntax");
                         }
                     }
                     break;
                 default:
-                    reply(event, "Invalid syntax");
+                    reply(event, cfg, "Invalid syntax");
             }
         }
     }
