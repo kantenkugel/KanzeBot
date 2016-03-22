@@ -527,10 +527,11 @@ public class CommandRegistry extends ListenerAdapter {
         }).acceptPriv(Command.Priv.BOTADMIN));
         commands.put("about", new CommandWrapper("Shows some basic info about this Bot", (e, cfg) -> {
             reply(e, cfg, String.format("```\n" + e.getJDA().getSelfInfo().getUsername() + " info:" +
-                            "\n%-16s: %s\n%-16s: %s\n%-16s: %s\n%-16s: %s\n%-16s: %s\n%-16s: %s\n```",
+                            "\n%-16s: %s\n%-16s: %s\n%-16s: %s\n%-16s: %s\n%-16s: %s\n%s\n```",
                     "Bot-ID", e.getJDA().getSelfInfo().getId(), "Owner", Statics.botOwner.getUsername() + '#' + Statics.botOwner.getDiscriminator(),
                     "Owner-ID", Statics.botOwner.getId(), "Version-rev.", Statics.VERSION,
-                    "Library", "JDA", "Library version", Statics.JDAVERSION));
+                    "Library", "JDA (v" + Statics.JDAVERSION + ")",
+                    "If you need help, or have suggestions, feel free to join my discord server: https://discord.gg/0tYwGhNHaw5MZjJn"));
         }));
     }
 
