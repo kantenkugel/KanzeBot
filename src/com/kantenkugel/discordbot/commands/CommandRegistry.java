@@ -555,6 +555,10 @@ public class CommandRegistry extends ListenerAdapter {
             }
         } else {
             cfg = ServerConfig.PMConfig.getInstance(event.getJDA());
+            if(event.getMessage().getContent().equalsIgnoreCase("help")) {
+                commands.get("help").accept(event, cfg);
+                return;
+            }
             if(event.getAuthor() != event.getJDA().getSelfInfo())
                 pmLog.info(event.getAuthor().getUsername() + ": " + event.getMessage().getContent());
         }
@@ -650,11 +654,23 @@ public class CommandRegistry extends ListenerAdapter {
             }
             Statics.LOG.info("Joining Guild " + event.getInvite().getGuildName() + " via invite of " + event.getAuthor().getUsername());
             InviteUtil.join(event.getInvite(), event.getJDA(), guild -> {
-                String text = "Joined Guild " + guild.getName() + "! Server owner should probably configure me via the config command\nDefault prefix is: "
+                String text = "Joined Guild " + guild.getName() + "! Server owner should probably configure me via the config command\nDefault command-prefix is: "
                         + ServerConfig.DEFAULT_PREFIX + "\nThe owner can reset it by calling -kbreset";
                 try {
                     channel.sendMessage(text);
                 } catch(RuntimeException ignored) {} //no write perms or blocked pm
+                text = "Joined Guild via invite of " + event.getAuthor().getUsername() + " (ID: " + event.getAuthor().getId() +
+                        ")! Server owner should probably configure me via the config command\n" +
+                        "Default command-prefix is: " + ServerConfig.DEFAULT_PREFIX + "\nThe owner can reset it by calling -kbreset";
+                if(guild.getPublicChannel().checkPermission(event.getJDA().getSelfInfo(), Permission.MESSAGE_WRITE)) {
+                    guild.getPublicChannel().sendMessageAsync(text, null);
+                } else {
+                    Optional<TextChannel> first = guild.getTextChannels().parallelStream().filter(tc -> tc.checkPermission(event.getJDA().getSelfInfo(), Permission.MESSAGE_WRITE))
+                            .sorted((c1, c2) -> Integer.compare(c1.getPosition(), c2.getPosition())).findFirst();
+                    if(first.isPresent()) {
+                        first.get().sendMessage(text);
+                    }
+                }
             });
         }
     }
