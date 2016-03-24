@@ -21,6 +21,7 @@ import net.dv8tion.jda.hooks.ListenerAdapter;
 import net.dv8tion.jda.managers.GuildManager;
 import net.dv8tion.jda.managers.PermissionOverrideManager;
 import net.dv8tion.jda.utils.InviteUtil;
+import net.dv8tion.jda.utils.PermissionUtil;
 import net.dv8tion.jda.utils.SimpleLog;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
@@ -220,7 +221,7 @@ public class CommandRegistry extends ListenerAdapter {
         }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
         commands.put("kick", new CommandWrapper("Kicks one or more Users from this Guild.\n" +
                 "Usage: `kick @mention [@mention ...]`", (e, cfg) -> {
-            if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.KICK_MEMBERS)) {
+            if(!PermissionUtil.checkPermission(e.getJDA().getSelfInfo(), Permission.KICK_MEMBERS, e.getGuild())) {
                 reply(e, cfg, "I do not have permissions!");
                 return;
             }
@@ -240,7 +241,7 @@ public class CommandRegistry extends ListenerAdapter {
         }).acceptPrivate(false).acceptPriv(Command.Priv.MOD));
         commands.put("ban", new CommandWrapper("Bans one or more Users from this Guild.\n" +
                 "Usage: `ban @mention [@mention ...]`", (e, cfg) -> {
-            if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.BAN_MEMBERS)) {
+            if(!PermissionUtil.checkPermission(e.getJDA().getSelfInfo(), Permission.BAN_MEMBERS, e.getGuild())) {
                 reply(e, cfg, "I do not have permissions!");
                 return;
             }
@@ -260,7 +261,7 @@ public class CommandRegistry extends ListenerAdapter {
         }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
         commands.put("unban", new CommandWrapper("Unbans one or more Users from this Guild. You need their Id to do that (use command \"`bans`\" to look them up).\n" +
                 "Usage: `unban Id [Id ...]`", (e, cfg) -> {
-            if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.BAN_MEMBERS)) {
+            if(!PermissionUtil.checkPermission(e.getJDA().getSelfInfo(), Permission.BAN_MEMBERS, e.getGuild())) {
                 reply(e, cfg, "I do not have permissions!");
                 return;
             }
@@ -282,7 +283,7 @@ public class CommandRegistry extends ListenerAdapter {
             reply(e, cfg, "Following users got unbanned: " + (unbanned.isEmpty() ? "None! (did you provide Ids?)" : StringUtils.join(unbanned, ", ")));
         }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
         commands.put("bans", new CommandWrapper("Prints out all Users that were banned in this guild (with their id).", (e, cfg) -> {
-            if(!e.getTextChannel().checkPermission(e.getJDA().getSelfInfo(), Permission.BAN_MEMBERS)) {
+            if(!PermissionUtil.checkPermission(e.getJDA().getSelfInfo(), Permission.BAN_MEMBERS, e.getGuild())) {
                 reply(e, cfg, "I do not have permissions!");
                 return;
             }
