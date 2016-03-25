@@ -174,8 +174,11 @@ public class CommandRegistry extends ListenerAdapter {
                 returned += "Available through modules:\n\t" + reduce.get() + "\n";
             }
             try {
-                m.getAuthor().getPrivateChannel().sendMessage("Commands available for " + (m.isPrivate() ? "PM" : "Guild " + m.getGuild().getName())
-                        + ":\n\n" + returned + "\n**NOTE**: you can type `help COMMAND` to get more detailed info about a specific command.");
+                m.getAuthor().getPrivateChannel().sendMessage("Commands available for **" + (m.isPrivate() ? "PM" : "Guild " + m.getGuild().getName())
+                        + "**:\n\n" + returned + "\n**NOTE**: you can type `help COMMAND` to get more detailed info about a specific command." +
+                        "\n**NOTE 2**: This command shows only the commands available to you for the Guild/Channel you called help from!" +
+                        "\nTherefore calling help via PM does not show moderation-commands and other commands exclusively available in Guilds." +
+                        "\nIt also only shows commands that you have the correct privileges for (Owner/Admin/Mod).");
                 if(m.isPrivate()) {
                     reply(m, cfg, "In Guilds, my commands may be prefixed differently (standard prefix in guilds is -kb instead of !)\n" +
                             "There are also 2 special commands: `-kbreset` resets the guild-prefix to default (-kb) and `-kbprefix` prints the current prefix of the guild. " +
