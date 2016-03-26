@@ -6,6 +6,7 @@ import com.kantenkugel.discordbot.util.MessageUtil;
 import com.kantenkugel.discordbot.util.ServerConfig;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.Permission;
+import net.dv8tion.jda.entities.User;
 import net.dv8tion.jda.entities.impl.JDAImpl;
 import net.dv8tion.jda.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.utils.PermissionUtil;
@@ -44,6 +45,10 @@ public class Inviter extends Module {
         Map<String, Command> commands = new HashMap<>();
         commands.put("invite", new CommandWrapper("Invites a bot to this Guild.\n**Usage:** `invite application_id`\n" +
                 "**Or:** `invite Oauth-URL`", (e, cfg) -> {
+            if(!PermissionUtil.checkPermission(e.getJDA().getSelfInfo(), Permission.MANAGE_SERVER, e.getGuild())) {
+                MessageUtil.reply(e, cfg, "This Bot is missing the MANAGE_SERVER permission to do this!");
+                return;
+            }
             String[] args = MessageUtil.getArgs(e, cfg, 3);
             if(args.length != 2) {
                 MessageUtil.reply(e, cfg, "Invalid syntax!");
@@ -63,13 +68,22 @@ public class Inviter extends Module {
                 }
             }
 
-            if(PermissionUtil.checkPermission(e.getJDA().getSelfInfo(), Permission.MANAGE_SERVER, e.getGuild())) {
-                ((JDAImpl) e.getJDA()).getRequester().post("https://discordapp.com/api/oauth2/authorize?client_id=" + app_id + "&scope=bot",
-                        new JSONObject().put("guild_id", e.getGuild().getId()).put("permissions", 0).put("authorize", true));
-                MessageUtil.reply(e, cfg, "Given Bot was invited to this Guild");
-            } else {
-                MessageUtil.reply(e, cfg, "This Bot is missing the MANAGE_SERVER permission to do this!");
+            JSONObject botInfo = ((JDAImpl) e.getJDA()).getRequester().get("https://discordapp.com/api/oauth2/authorize?client_id=" + app_id + "&scope=bot");
+            if(botInfo == null || !botInfo.has("bot")) {
+                MessageUtil.reply(e, cfg, "Could not resolve Bot-name... is this a valid application-id?");
+                return;
             }
+            botInfo = botInfo.getJSONObject("bot");
+
+            User botUser = e.getJDA().getUserById(botInfo.getString("id"));
+            if(botUser != null && e.getGuild().getUsers().contains(botUser)) {
+                MessageUtil.reply(e, cfg, "Bot "+botUser.getUsername()+" is already member of this Server!");
+                return;
+            }
+
+            ((JDAImpl) e.getJDA()).getRequester().post("https://discordapp.com/api/oauth2/authorize?client_id=" + app_id + "&scope=bot",
+                    new JSONObject().put("guild_id", e.getGuild().getId()).put("permissions", 0).put("authorize", true));
+            MessageUtil.reply(e, cfg, "Bot " + botInfo.getString("username") + " was invited to this Guild");
         }));
         return commands;
     }
