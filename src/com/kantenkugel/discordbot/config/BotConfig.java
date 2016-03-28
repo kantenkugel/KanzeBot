@@ -1,4 +1,4 @@
-package com.kantenkugel.discordbot.util;
+package com.kantenkugel.discordbot.config;
 
 import com.sun.istack.internal.NotNull;
 import com.sun.istack.internal.Nullable;

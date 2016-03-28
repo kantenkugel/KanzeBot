@@ -2,13 +2,13 @@ package com.kantenkugel.discordbot.modules;
 
 import com.kantenkugel.discordbot.commands.Command;
 import com.kantenkugel.discordbot.commands.CommandWrapper;
-import com.kantenkugel.discordbot.util.BotConfig;
+import com.kantenkugel.discordbot.config.BotConfig;
+import com.kantenkugel.discordbot.config.ServerConfig;
+import com.kantenkugel.discordbot.listener.MessageEvent;
 import com.kantenkugel.discordbot.util.MessageUtil;
-import com.kantenkugel.discordbot.util.ServerConfig;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import net.dv8tion.jda.JDA;
-import net.dv8tion.jda.events.message.MessageReceivedEvent;
 import org.json.JSONObject;
 
 import java.io.UnsupportedEncodingException;
@@ -46,7 +46,7 @@ public class Translator extends Module {
     }
 
     @Override
-    public void configure(String cfgString, MessageReceivedEvent event, ServerConfig cfg) {
+    public void configure(String cfgString, MessageEvent event, ServerConfig cfg) {
         MessageUtil.reply(event, cfg, "This module has no Configuration options!");
     }
 

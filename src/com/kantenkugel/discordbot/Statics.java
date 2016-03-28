@@ -1,6 +1,6 @@
 package com.kantenkugel.discordbot;
 
-import com.kantenkugel.discordbot.util.BotConfig;
+import com.kantenkugel.discordbot.config.BotConfig;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.JDAInfo;
 import net.dv8tion.jda.entities.User;

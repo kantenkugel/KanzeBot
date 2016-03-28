@@ -2,15 +2,15 @@ package com.kantenkugel.discordbot.modules;
 
 import com.kantenkugel.discordbot.commands.Command;
 import com.kantenkugel.discordbot.commands.CommandWrapper;
+import com.kantenkugel.discordbot.config.ServerConfig;
+import com.kantenkugel.discordbot.listener.MessageEvent;
 import com.kantenkugel.discordbot.util.MessageUtil;
-import com.kantenkugel.discordbot.util.ServerConfig;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.MessageHistory;
 import net.dv8tion.jda.Permission;
 import net.dv8tion.jda.entities.Message;
 import net.dv8tion.jda.entities.TextChannel;
 import net.dv8tion.jda.entities.impl.JDAImpl;
-import net.dv8tion.jda.events.message.MessageReceivedEvent;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -44,7 +44,7 @@ public class Todo extends Module {
     }
 
     @Override
-    public void configure(String cfgString, MessageReceivedEvent event, ServerConfig cfg) {
+    public void configure(String cfgString, MessageEvent event, ServerConfig cfg) {
         if(cfgString == null) {
             MessageUtil.reply(event, cfg, "**Config:** `channel channelname` to set the channel where the dodo-list should be built");
         } else {

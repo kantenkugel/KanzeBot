@@ -3,11 +3,11 @@ package com.kantenkugel.discordbot.modules;
 import com.kantenkugel.discordbot.Statics;
 import com.kantenkugel.discordbot.commands.Command;
 import com.kantenkugel.discordbot.commands.CommandWrapper;
+import com.kantenkugel.discordbot.config.ServerConfig;
+import com.kantenkugel.discordbot.listener.MessageEvent;
 import com.kantenkugel.discordbot.util.MessageUtil;
-import com.kantenkugel.discordbot.util.ServerConfig;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.entities.TextChannel;
-import net.dv8tion.jda.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.utils.SimpleLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -43,7 +43,7 @@ public class AutoRespond extends Module {
     }
 
     @Override
-    public void configure(String cfgString, MessageReceivedEvent event, ServerConfig cfg) {
+    public void configure(String cfgString, MessageEvent event, ServerConfig cfg) {
         MessageUtil.reply(event, cfg, intConfig(cfgString, cfg, event));
     }
 
@@ -97,12 +97,13 @@ public class AutoRespond extends Module {
     }
 
     @Override
-    public boolean handle(MessageReceivedEvent event, ServerConfig cfg) {
-        if(event.getAuthor() == event.getJDA().getSelfInfo() || (!channels.isEmpty() && !channels.contains(event.getTextChannel().getId()))
-                || event.getMessage().getContent().startsWith(servercfg.getPrefix())) {
+    public boolean handle(MessageEvent event, ServerConfig cfg) {
+        if(event.isEdit() || event.getAuthor() == event.getJDA().getSelfInfo()
+                || (!channels.isEmpty() && !channels.contains(event.getTextChannel().getId()))
+                || event.getContent().startsWith(servercfg.getPrefix())) {
             return false;
         }
-        String content = event.getMessage().getContent().toLowerCase();
+        String content = event.getContent().toLowerCase();
         Optional<String> response = responses.values().parallelStream().filter(r -> r.getLeft().parallelStream()
                 .allMatch(k -> {
                     int i = content.indexOf(k);
@@ -114,13 +115,13 @@ public class AutoRespond extends Module {
                 .map(Pair::getRight).findAny();
         if(response.isPresent()) {
             respondLog.info(String.format("[%s][%s] %s: %s\n\t->%s", event.getGuild().getName(), event.getTextChannel().getName(),
-                    event.getAuthor().getUsername(), event.getMessage().getContent(), response.get()));
-            MessageUtil.reply(event, cfg, response.get());
+                    event.getAuthor().getUsername(), event.getContent(), response.get()));
+            MessageUtil.replySync(event, cfg, response.get());
         }
         return false;
     }
 
-    private String intConfig(String cfgString, ServerConfig cfg, MessageReceivedEvent event) {
+    private String intConfig(String cfgString, ServerConfig cfg, MessageEvent event) {
         if(cfgString == null) {
             return getUsage();
         }

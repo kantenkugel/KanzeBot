@@ -1,30 +1,25 @@
 package com.kantenkugel.discordbot.commands;
 
 import com.kantenkugel.discordbot.Statics;
+import com.kantenkugel.discordbot.config.BlackList;
+import com.kantenkugel.discordbot.config.ServerConfig;
+import com.kantenkugel.discordbot.listener.MessageEvent;
 import com.kantenkugel.discordbot.modules.Module;
-import com.kantenkugel.discordbot.util.*;
-import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.http.exceptions.UnirestException;
+import com.kantenkugel.discordbot.util.FinderUtil;
+import com.kantenkugel.discordbot.util.MessageUtil;
+import com.kantenkugel.discordbot.util.MiscUtil;
+import com.kantenkugel.discordbot.util.TaskHelper;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.MessageBuilder;
 import net.dv8tion.jda.MessageHistory;
 import net.dv8tion.jda.Permission;
 import net.dv8tion.jda.entities.*;
-import net.dv8tion.jda.events.InviteReceivedEvent;
-import net.dv8tion.jda.events.ReadyEvent;
-import net.dv8tion.jda.events.ReconnectedEvent;
-import net.dv8tion.jda.events.guild.GuildJoinEvent;
-import net.dv8tion.jda.events.guild.GuildLeaveEvent;
-import net.dv8tion.jda.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.exceptions.BlockedException;
-import net.dv8tion.jda.hooks.ListenerAdapter;
 import net.dv8tion.jda.managers.GuildManager;
 import net.dv8tion.jda.managers.PermissionOverrideManager;
-import net.dv8tion.jda.utils.InviteUtil;
 import net.dv8tion.jda.utils.PermissionUtil;
 import net.dv8tion.jda.utils.SimpleLog;
 import org.apache.commons.lang3.StringUtils;
-import org.json.JSONArray;
 
 import javax.imageio.ImageIO;
 import javax.script.ScriptEngine;
@@ -46,10 +41,9 @@ import static com.kantenkugel.discordbot.util.MessageUtil.reply;
 /**
  * Created by Michael Ritter on 06.12.2015.
  */
-public class CommandRegistry extends ListenerAdapter {
+public class CommandRegistry {
     private static final Map<String, Command> commands = new HashMap<>();
-    private static final Map<String, ServerConfig> serverConfigs = new HashMap<>();
-    private static final Set<String> blacklist = new HashSet<>();
+    public static final Map<String, ServerConfig> serverConfigs = new HashMap<>();
 
     private static final SimpleLog pmLog = SimpleLog.getLog("PM");
     private static final SimpleLog mentionLog = SimpleLog.getLog("Mention");
@@ -61,16 +55,12 @@ public class CommandRegistry extends ListenerAdapter {
     private static final ScriptEngine engine = new ScriptEngineManager().getEngineByName("Nashorn");
 
     public static void init() {
-        JSONArray blacklistArr = BotConfig.get("blacklist", new JSONArray());
-        for(int i = 0; i < blacklistArr.length(); i++) {
-            blacklist.add(blacklistArr.getString(i));
-        }
-
         loadCommands();
         engine.put("commands", commands);
         engine.put("rng", new Random());
         engine.put("finder", new FinderUtil());
         engine.put("Command", CustomCommand.class);
+        engine.put("TaskHelper", TaskHelper.class);
         try {
             engine.eval("var imports = new JavaImporter(java.io, java.lang, java.util);");
         } catch(ScriptException e) {
@@ -305,7 +295,7 @@ public class CommandRegistry extends ListenerAdapter {
             engine.put("config", cfg);
             try {
                 Object out = engine.eval("(function(){ with(imports) {"
-                        + m.getMessage().getContent().substring(cfg.getPrefix().length() + 5)
+                        + m.getContent().substring(cfg.getPrefix().length() + 5)
                         + "} })();");
                 msg = new MessageBuilder().appendString(out == null ? "Done!" : MessageUtil.strip(out.toString()), MessageBuilder.Formatting.BLOCK).build();
             } catch(Exception e) {
@@ -317,17 +307,17 @@ public class CommandRegistry extends ListenerAdapter {
             reply(event, cfg, "Running for " + MiscUtil.getUptime());
         }));
         commands.put("shutdown", new CommandWrapper("Shuts down this bot. Be careful or Kantenkugel will kill you!", (msg, cfg) -> {
-            reply(msg, cfg, "OK, Bye!");
+            MessageUtil.replySync(msg, cfg, "OK, Bye!");
             MiscUtil.await(msg.getJDA(), MiscUtil::shutdown);
             msg.getJDA().shutdown();
         }).acceptPriv(Command.Priv.BOTADMIN));
         commands.put("restart", new CommandWrapper("Restarts this bot.", (msg, cfg) -> {
-            reply(msg, cfg, "OK, BRB!");
+            MessageUtil.replySync(msg, cfg, "OK, BRB!");
             MiscUtil.await(msg.getJDA(), MiscUtil::restart);
             msg.getJDA().shutdown();
         }).acceptPriv(Command.Priv.BOTADMIN));
         commands.put("update", new CommandWrapper("Updates this bot.", (msg, cfg) -> {
-            reply(msg, cfg, "OK, BRB!");
+            MessageUtil.replySync(msg, cfg, "OK, BRB!");
             MiscUtil.await(msg.getJDA(), MiscUtil::update);
             msg.getJDA().shutdown();
         }).acceptPriv(Command.Priv.BOTADMIN));
@@ -485,31 +475,32 @@ public class CommandRegistry extends ListenerAdapter {
                 case "add":
                     if(mentioned.isEmpty()) {
                         if(args.length == 3) {
-                            blacklist.add(args[2]);
+                            if(!MessageUtil.getGlobalAdmins().contains(args[2]))
+                                BlackList.add(args[2]);
                         } else {
                             reply(e, cfg, commands.get("blacklist").getDescription());
                             return;
                         }
                     } else {
-                        mentioned.stream().filter(u -> !MessageUtil.isGlobalAdmin(u)).forEach(u -> blacklist.add(u.getId()));
+                        mentioned.stream().filter(u -> !MessageUtil.isGlobalAdmin(u)).forEach(BlackList::add);
                     }
                     break;
                 case "del":
                 case "remove":
                     if(mentioned.isEmpty()) {
                         if(args.length == 3) {
-                            blacklist.remove(args[2]);
+                            BlackList.remove(args[2]);
                         } else {
                             reply(e, cfg, commands.get("blacklist").getDescription());
                             return;
                         }
                     } else {
-                        mentioned.forEach(u -> blacklist.remove(u.getId()));
+                        mentioned.forEach(BlackList::remove);
                     }
                     break;
                 case "show":
                 case "list":
-                    Optional<String> black = blacklist.stream().map(b -> {
+                    Optional<String> black = BlackList.get().stream().map(b -> {
                         User userById = e.getJDA().getUserById(b);
                         if(userById == null)
                             return b;
@@ -523,10 +514,6 @@ public class CommandRegistry extends ListenerAdapter {
                 default:
                     return;
             }
-            JSONArray blacklistArr = new JSONArray();
-            blacklist.forEach(blacklistArr::put);
-            BotConfig.set("blacklist", blacklistArr);
-
             reply(e, cfg, "User(s) added/removed from blacklist!");
         }).acceptPriv(Command.Priv.BOTADMIN));
         commands.put("about", new CommandWrapper("Shows some basic info about this Bot", (e, cfg) -> {
@@ -539,44 +526,51 @@ public class CommandRegistry extends ListenerAdapter {
         }));
     }
 
-    @Override
-    public void onMessageReceived(MessageReceivedEvent event) {
+    public static void handle(MessageEvent event) {
         msgCount++;
-        if(blacklist.contains(event.getAuthor().getId())) {
-            return;
-        }
+
+        //load correct config-file
         ServerConfig cfg;
         if(!event.isPrivate()) {
-            cfg = serverConfigs.get(event.getTextChannel().getGuild().getId());
-            if(event.getMessage().getContent().equals("-kbreset") && cfg.isOwner(event.getAuthor())) {
-                cfg.setPrefix(ServerConfig.DEFAULT_PREFIX);
-                reply(event, cfg, "Prefix was reset to default (" + ServerConfig.DEFAULT_PREFIX + ")");
-                return;
-            }
+            cfg = serverConfigs.get(event.getGuild().getId());
             if(event.getMessage().getMentionedUsers().contains(event.getJDA().getSelfInfo()) || event.getMessage().getMentionedUsers().contains(Statics.botOwner)) {
                 mentionLog.info(String.format("[%s][%s] %s:%s", event.getGuild().getName(), event.getTextChannel().getName(),
-                        event.getAuthor().getUsername(), event.getMessage().getContent()));
+                        event.getAuthor().getUsername(), event.getContent()));
             }
         } else {
             cfg = ServerConfig.PMConfig.getInstance(event.getJDA());
-            if(event.getMessage().getContent().equalsIgnoreCase("help")) {
-                commands.get("help").accept(event, cfg);
-                return;
-            }
             if(event.getAuthor() != event.getJDA().getSelfInfo())
-                pmLog.info(event.getAuthor().getUsername() + ": " + event.getMessage().getContent());
+                pmLog.info(event.getAuthor().getUsername() + ": " + event.getContent());
         }
 
-        if(event.getMessage().getContent().equals("-kbprefix")) {
-            reply(event, cfg, "Current command-prefix is: `" + cfg.getPrefix() + '`');
-            return;
-        }
 
+        //let modules handle the message and break if requested
         if(cfg.getModules().values().stream().map(m -> m.handle(event, cfg)).anyMatch(b -> b)) {
             return;
         }
 
-        if(event.getMessage().getContent().startsWith(cfg.getPrefix())) {
+        //stop if message is not created or user is blacklisted
+        if(event.isEdit() || BlackList.contains(event.getAuthor())) {
+            return;
+        }
+
+        //handle hard-coded commands
+        if(event.getMessage().getContent().equals("-kbreset") && cfg.isOwner(event.getAuthor())) {
+            cfg.setPrefix(ServerConfig.DEFAULT_PREFIX);
+            reply(event, cfg, "Prefix was reset to default (" + ServerConfig.DEFAULT_PREFIX + ")");
+            return;
+        }
+        if(event.getMessage().getContent().equals("-kbprefix")) {
+            reply(event, cfg, "Current command-prefix is: `" + cfg.getPrefix() + '`');
+            return;
+        }
+        if(event.isPrivate() && event.getContent().equalsIgnoreCase("help")) {
+            commands.get("help").accept(event, cfg);
+            return;
+        }
+
+        //Handle registered commands
+        if(event.getContent().startsWith(cfg.getPrefix())) {
             String[] args = MessageUtil.getArgs(event, cfg);
             if(commands.containsKey(args[0])) {
                 if(commands.get(args[0]).isAvailable(event, cfg)) {
@@ -608,78 +602,7 @@ public class CommandRegistry extends ListenerAdapter {
         }
     }
 
-    @Override
-    public void onReady(ReadyEvent event) {
-        initVars(event.getJDA());
-    }
-
-    @Override
-    public void onReconnect(ReconnectedEvent event) {
-        initVars(event.getJDA());
-    }
-
-    private void initVars(JDA jda) {
-        jda.getAccountManager().setGame("JDA");
-        serverConfigs.clear();
-        for(Guild guild : jda.getGuilds()) {
-            serverConfigs.put(guild.getId(), new ServerConfig(jda, guild));
-        }
-        Statics.botOwner = jda.getUserById(BotConfig.get("ownerId"));
-        updateCarbon();
-    }
-
-    @Override
-    public void onGuildJoin(GuildJoinEvent event) {
-        Statics.LOG.info("Joined Guild " + event.getGuild().getName());
-        serverConfigs.put(event.getGuild().getId(), new ServerConfig(event.getJDA(), event.getGuild()));
-        updateCarbon();
-    }
-
-    @Override
-    public void onGuildLeave(GuildLeaveEvent event) {
-        Statics.LOG.info("Left Guild " + event.getGuild().getName());
-        serverConfigs.remove(event.getGuild().getId());
-        updateCarbon();
-    }
-
-    @Override
-    public void onInviteReceived(InviteReceivedEvent event) {
-        if(blacklist.contains(event.getAuthor().getId())) {
-            return;
-        }
-        MessageChannel channel = event.isPrivate() ? event.getJDA().getPrivateChannelById(event.getMessage().getChannelId()) :
-                event.getJDA().getTextChannelById(event.getMessage().getChannelId());
-        if((event.isPrivate() || event.getMessage().getMentionedUsers().contains(event.getJDA().getSelfInfo()))) {
-            if(event.getJDA().getGuildById(event.getInvite().getGuildId()) != null) {
-                try {
-                    channel.sendMessage("Already in that Server!");
-                } catch (RuntimeException ignored) {} //no write perms or blocked pm
-                return;
-            }
-            Statics.LOG.info("Joining Guild " + event.getInvite().getGuildName() + " via invite of " + event.getAuthor().getUsername());
-            InviteUtil.join(event.getInvite(), event.getJDA(), guild -> {
-                String text = "Joined Guild " + guild.getName() + "! Server owner should probably configure me via the config command\nDefault command-prefix is: "
-                        + ServerConfig.DEFAULT_PREFIX + "\nThe owner can reset it by calling -kbreset";
-                try {
-                    channel.sendMessage(text);
-                } catch(RuntimeException ignored) {} //no write perms or blocked pm
-                text = "Joined Guild via invite of " + event.getAuthor().getUsername() + " (ID: " + event.getAuthor().getId() +
-                        ")! Server owner should probably configure me via the config command\n" +
-                        "Default command-prefix is: " + ServerConfig.DEFAULT_PREFIX + "\nThe owner can reset it by calling -kbreset";
-                if(guild.getPublicChannel().checkPermission(event.getJDA().getSelfInfo(), Permission.MESSAGE_WRITE)) {
-                    guild.getPublicChannel().sendMessageAsync(text, null);
-                } else {
-                    Optional<TextChannel> first = guild.getTextChannels().parallelStream().filter(tc -> tc.checkPermission(event.getJDA().getSelfInfo(), Permission.MESSAGE_WRITE))
-                            .sorted((c1, c2) -> Integer.compare(c1.getPosition(), c2.getPosition())).findFirst();
-                    if(first.isPresent()) {
-                        first.get().sendMessage(text);
-                    }
-                }
-            });
-        }
-    }
-
-    private static void config(MessageReceivedEvent event, ServerConfig cfg) {
+    private static void config(MessageEvent event, ServerConfig cfg) {
         String[] args = MessageUtil.getArgs(event, cfg);
         if(args.length == 1) {
             reply(event, cfg, "Available subcommands: prefix, restrictTexts, leave, admins, mods, modules, allowEveryone\nTo get more details, run " + cfg.getPrefix() + args[0] + " SUBCOMMAND");
@@ -714,12 +637,12 @@ public class CommandRegistry extends ListenerAdapter {
                     break;
                 case "alloweveryone":
                     if(args.length == 2) {
-                        reply(event, "This config changes if the bot can ping @everyone in this guild " +
+                        reply(event, cfg, MessageUtil.strip("This config changes if the bot can ping @everyone in this guild " +
                                 "(this affects primarily text-responses created by `addcom` and responses from the responder module)." +
                                 "\nIf allowEveryone is set to true, this bot can do @everyone." +
                                 "\nIf set to false, @everyone will always get escaped." +
                                 "\nallowEveryone is currently set to: " + cfg.isAllowEveryone() +
-                                "\nTo change, call " + cfg.getPrefix() + args[0] + " " + args[1] + " true/false", true, true);
+                                "\nTo change, call " + cfg.getPrefix() + args[0] + " " + args[1] + " true/false"));
                     } else {
                         cfg.setAllowEveryone(Boolean.parseBoolean(args[2]));
                         reply(event, cfg, "allowEveryone changed to " + cfg.isAllowEveryone());
@@ -739,10 +662,10 @@ public class CommandRegistry extends ListenerAdapter {
                                 "\nAdmins have access to everything mods can, + access to the clear command (may change)" +
                                 "\nUsage: " + cfg.getPrefix() + args[0] + " " + args[1] + " addUser/removeUser @MENTION" +
                                 "\nOr: " + cfg.getPrefix() + args[0] + " " + args[1] + " addRole/removeRole ROLENAME");
-                        reply(event, "Current Admins:\n\tUsers: "
+                        reply(event, cfg, MessageUtil.strip("Current Admins:\n\tUsers: "
                                 + (cfg.getAdmins().size() == 0 ? "None" : cfg.getAdmins().stream().map(User::getUsername).reduce((s1, s2) -> s1 + ", " + s2).get())
                                 + "\n\tRoles: " + (cfg.getAdminRoles().size() == 0 ? "None" :
-                                MessageUtil.strip(cfg.getAdminRoles().stream().map(Role::getName).reduce((s1, s2) -> s1 + ", " + s2).get())), true, true);
+                                MessageUtil.strip(cfg.getAdminRoles().stream().map(Role::getName).reduce((s1, s2) -> s1 + ", " + s2).get()))));
                     } else {
                         switch(key) {
                             case "adduser":
@@ -758,7 +681,7 @@ public class CommandRegistry extends ListenerAdapter {
                                 Optional<Role> any = event.getGuild().getRoles().stream().filter(r -> r.getName().equalsIgnoreCase(name)).findAny();
                                 if(any.isPresent()) {
                                     cfg.addAdminRole(any.get());
-                                    reply(event, "Role " + any.get().getName() + " added as admin role", true, true);
+                                    reply(event, cfg, MessageUtil.strip("Role " + any.get().getName() + " added as admin role"));
                                 } else {
                                     reply(event, cfg, "No role matching given name found");
                                 }
@@ -768,7 +691,7 @@ public class CommandRegistry extends ListenerAdapter {
                                 Optional<Role> anyremove = event.getGuild().getRoles().stream().filter(r -> r.getName().equalsIgnoreCase(name2)).findAny();
                                 if(anyremove.isPresent()) {
                                     cfg.removeAdminRole(anyremove.get());
-                                    reply(event, "Role " + anyremove.get().getName() + " removed from admin roles", true, true);
+                                    reply(event, cfg, MessageUtil.strip("Role " + anyremove.get().getName() + " removed from admin roles"));
                                 } else {
                                     reply(event, cfg, "No role matching given name found");
                                 }
@@ -784,10 +707,10 @@ public class CommandRegistry extends ListenerAdapter {
                                 "\nMods have access to adding, removing and editing text-commands, and also calling them, when they were locked via the restrictTexts config" +
                                 "\nUsage: " + cfg.getPrefix() + args[0] + " " + args[1] + " addUser/removeUser @MENTION" +
                                 "\nOr: " + cfg.getPrefix() + args[0] + " " + args[1] + " addRole/removeRole ROLENAME");
-                        reply(event, "Current Mods:\n\tUsers: "
+                        reply(event, cfg, MessageUtil.strip("Current Mods:\n\tUsers: "
                                 + (cfg.getMods().size() == 0 ? "None" : cfg.getMods().stream().map(User::getUsername).reduce((s1, s2) -> s1 + ", " + s2).get())
                                 + "\n\tRoles: " + (cfg.getModRoles().size() == 0 ? "None" :
-                                MessageUtil.strip(cfg.getModRoles().stream().map(Role::getName).reduce((s1, s2) -> s1 + ", " + s2).get())), true, true);
+                                MessageUtil.strip(cfg.getModRoles().stream().map(Role::getName).reduce((s1, s2) -> s1 + ", " + s2).get()))));
                     } else {
                         switch(key) {
                             case "adduser":
@@ -803,7 +726,7 @@ public class CommandRegistry extends ListenerAdapter {
                                 Optional<Role> any = event.getGuild().getRoles().stream().filter(r -> r.getName().equalsIgnoreCase(name)).findAny();
                                 if(any.isPresent()) {
                                     cfg.addModRole(any.get());
-                                    reply(event, "Role " + any.get().getName() + " added as mod role", true, true);
+                                    reply(event, cfg, MessageUtil.strip("Role " + any.get().getName() + " added as mod role"));
                                 } else {
                                     reply(event, cfg, "No role matching given name found");
                                 }
@@ -813,7 +736,7 @@ public class CommandRegistry extends ListenerAdapter {
                                 Optional<Role> anyremove = event.getGuild().getRoles().stream().filter(r -> r.getName().equalsIgnoreCase(name2)).findAny();
                                 if(anyremove.isPresent()) {
                                     cfg.removeModRole(anyremove.get());
-                                    reply(event, "Role " + anyremove.get().getName() + " removed from mod roles", true, true);
+                                    reply(event, cfg, MessageUtil.strip("Role " + anyremove.get().getName() + " removed from mod roles"));
                                 } else {
                                     reply(event, cfg, "No role matching given name found");
                                 }
@@ -882,18 +805,6 @@ public class CommandRegistry extends ListenerAdapter {
                 default:
                     reply(event, cfg, "Invalid syntax");
             }
-        }
-    }
-
-    private static void updateCarbon() {
-        String carbonKey = BotConfig.get("carbonKey");
-        if(carbonKey == null || carbonKey.trim().isEmpty()) {
-            return;
-        }
-        try {
-            Unirest.post("https://www.carbonitex.net/discord/data/botdata.php").field("key", carbonKey).field("servercount", Statics.jdaInstance.getGuilds().size()).asString();
-        } catch(UnirestException e) {
-            e.printStackTrace();
         }
     }
 

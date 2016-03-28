@@ -1,11 +1,11 @@
 package com.kantenkugel.discordbot.modules;
 
 import com.kantenkugel.discordbot.commands.Command;
+import com.kantenkugel.discordbot.config.ServerConfig;
+import com.kantenkugel.discordbot.listener.MessageEvent;
 import com.kantenkugel.discordbot.util.MessageUtil;
-import com.kantenkugel.discordbot.util.ServerConfig;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.entities.User;
-import net.dv8tion.jda.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.exceptions.PermissionException;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -35,7 +35,7 @@ public class Moderation extends Module {
     }
 
     @Override
-    public void configure(String cfgString, MessageReceivedEvent event, ServerConfig cfg) {
+    public void configure(String cfgString, MessageEvent event, ServerConfig cfg) {
         if(cfgString == null) {
             MessageUtil.reply(event, cfg, "To add blacklisted words, use `add name [name]`, otherwise use `remove`\nTo change warnings before kick (current: "+maxWarns+"), use `warns NUM`\n" +
                     "Blacklisted: " + (blacklisted.isEmpty() ? "-" : blacklisted.stream().reduce((s1, s2) -> s1 + ", " + s2).get()), false);
@@ -100,11 +100,11 @@ public class Moderation extends Module {
     }
 
     @Override
-    public boolean handle(MessageReceivedEvent event, ServerConfig cfg) {
+    public boolean handle(MessageEvent event, ServerConfig cfg) {
         if(event.getAuthor() == event.getJDA().getSelfInfo() || servercfg.isMod(event.getAuthor())) {
             return false;
         }
-        String msg = event.getMessage().getContent().toLowerCase();
+        String msg = event.getContent().toLowerCase();
         if(blacklisted.stream().anyMatch(msg::contains)) {
             try {
                 event.getMessage().deleteMessage();
@@ -122,7 +122,7 @@ public class Moderation extends Module {
                     MessageUtil.reply(event, cfg, "I would ban you if i could! (" + warns.get() + " warnings!)");
                 }
             } else {
-                MessageUtil.reply(event, cfg, "Oh no you didnt just write that! (warning " + warns.get() + ")");
+                MessageUtil.replySync(event, cfg, "Oh no you didn't just write that! (warning " + warns.get() + ")");
             }
             return true;
         }

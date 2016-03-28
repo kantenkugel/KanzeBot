@@ -2,10 +2,10 @@ package com.kantenkugel.discordbot.modules;
 
 import com.kantenkugel.discordbot.Statics;
 import com.kantenkugel.discordbot.commands.Command;
+import com.kantenkugel.discordbot.config.ServerConfig;
+import com.kantenkugel.discordbot.listener.MessageEvent;
 import com.kantenkugel.discordbot.util.ClassEnumerator;
-import com.kantenkugel.discordbot.util.ServerConfig;
 import net.dv8tion.jda.JDA;
-import net.dv8tion.jda.events.message.MessageReceivedEvent;
 import org.json.JSONObject;
 
 import java.util.HashMap;
@@ -73,13 +73,13 @@ public abstract class Module {
     public abstract void init(JDA jda, ServerConfig cfg);
 
     /**
-     * Pass-through of EVERY messageReceivedEvent
+     * Pass-through of EVERY MessageEvent
      * @param event
      *      the pass-through event
      * @return
      *      true, if further handling via commands should be stopped
      */
-    public boolean handle(MessageReceivedEvent event, ServerConfig cfg) { return false; }
+    public boolean handle(MessageEvent event, ServerConfig cfg) { return false; }
 
     /**
      * Called when the Guild-owner tries to configure this module.
@@ -88,11 +88,11 @@ public abstract class Module {
      * @param cfgString
      *      null if no config string is supplied (help), or the string supplied to configure
      * @param event
-     *      the complete MessageReceivedEvent
+     *      the complete MessageEvent
      * @param cfg
      *      the ServerConfig Object
      */
-    public abstract void configure(String cfgString, MessageReceivedEvent event, ServerConfig cfg);
+    public abstract void configure(String cfgString, MessageEvent event, ServerConfig cfg);
 
     /**
      * This method should return all Commands available via this Module.

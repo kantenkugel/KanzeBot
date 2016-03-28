@@ -1,7 +1,7 @@
 package com.kantenkugel.discordbot.commands;
 
-import com.kantenkugel.discordbot.util.ServerConfig;
-import net.dv8tion.jda.events.message.MessageReceivedEvent;
+import com.kantenkugel.discordbot.config.ServerConfig;
+import com.kantenkugel.discordbot.listener.MessageEvent;
 
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -10,17 +10,17 @@ import java.util.function.Consumer;
  * Created by Michael Ritter on 06.12.2015.
  */
 public class CommandWrapper extends Command {
-    private final Consumer<MessageReceivedEvent> function;
-    private final BiConsumer<MessageReceivedEvent, ServerConfig> biFunction;
+    private final Consumer<MessageEvent> function;
+    private final BiConsumer<MessageEvent, ServerConfig> biFunction;
     private final String description;
 
-    public CommandWrapper(String desc, Consumer<MessageReceivedEvent> function) {
+    public CommandWrapper(String desc, Consumer<MessageEvent> function) {
         this.description = desc;
         this.function = function;
         this.biFunction = null;
     }
 
-    public CommandWrapper(String desc, BiConsumer<MessageReceivedEvent, ServerConfig> biFunction) {
+    public CommandWrapper(String desc, BiConsumer<MessageEvent, ServerConfig> biFunction) {
         this.description = desc;
         this.biFunction = biFunction;
         this.function = null;
@@ -32,7 +32,7 @@ public class CommandWrapper extends Command {
     }
 
     @Override
-    public void accept(MessageReceivedEvent event, ServerConfig cfg) {
+    public void accept(MessageEvent event, ServerConfig cfg) {
         if(biFunction != null) {
             biFunction.accept(event, cfg);
         }

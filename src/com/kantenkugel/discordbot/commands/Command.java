@@ -1,8 +1,8 @@
 package com.kantenkugel.discordbot.commands;
 
+import com.kantenkugel.discordbot.config.ServerConfig;
+import com.kantenkugel.discordbot.listener.MessageEvent;
 import com.kantenkugel.discordbot.util.MessageUtil;
-import com.kantenkugel.discordbot.util.ServerConfig;
-import net.dv8tion.jda.events.message.MessageReceivedEvent;
 
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
@@ -10,12 +10,12 @@ import java.util.function.BiPredicate;
 /**
  * Created by Michael Ritter on 06.12.2015.
  */
-public abstract class Command implements BiConsumer<MessageReceivedEvent, ServerConfig> {
+public abstract class Command implements BiConsumer<MessageEvent, ServerConfig> {
     protected Boolean requiresPrivate = null;
     protected Priv priv = Priv.ALL;
-    protected BiPredicate<MessageReceivedEvent, ServerConfig> customFunction = null;
+    protected BiPredicate<MessageEvent, ServerConfig> customFunction = null;
 
-    public boolean isAvailable(MessageReceivedEvent event, ServerConfig cfg) {
+    public boolean isAvailable(MessageEvent event, ServerConfig cfg) {
         if(customFunction != null) {
             return customFunction.test(event, cfg);
         }
@@ -57,7 +57,7 @@ public abstract class Command implements BiConsumer<MessageReceivedEvent, Server
         return requiresPrivate;
     }
 
-    public Command acceptCustom(BiPredicate<MessageReceivedEvent, ServerConfig> customFunction) {
+    public Command acceptCustom(BiPredicate<MessageEvent, ServerConfig> customFunction) {
         this.customFunction = customFunction;
         return this;
     }

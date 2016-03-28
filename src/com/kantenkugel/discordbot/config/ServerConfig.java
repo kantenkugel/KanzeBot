@@ -1,7 +1,8 @@
-package com.kantenkugel.discordbot.util;
+package com.kantenkugel.discordbot.config;
 
 import com.kantenkugel.discordbot.commands.Command;
 import com.kantenkugel.discordbot.modules.Module;
+import com.kantenkugel.discordbot.util.MessageUtil;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.entities.Guild;
 import net.dv8tion.jda.entities.Role;

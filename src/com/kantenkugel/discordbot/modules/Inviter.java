@@ -2,13 +2,13 @@ package com.kantenkugel.discordbot.modules;
 
 import com.kantenkugel.discordbot.commands.Command;
 import com.kantenkugel.discordbot.commands.CommandWrapper;
+import com.kantenkugel.discordbot.config.ServerConfig;
+import com.kantenkugel.discordbot.listener.MessageEvent;
 import com.kantenkugel.discordbot.util.MessageUtil;
-import com.kantenkugel.discordbot.util.ServerConfig;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.Permission;
 import net.dv8tion.jda.entities.User;
 import net.dv8tion.jda.entities.impl.JDAImpl;
-import net.dv8tion.jda.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.utils.PermissionUtil;
 import org.json.JSONObject;
 
@@ -36,7 +36,7 @@ public class Inviter extends Module {
     }
 
     @Override
-    public void configure(String cfgString, MessageReceivedEvent event, ServerConfig cfg) {
+    public void configure(String cfgString, MessageEvent event, ServerConfig cfg) {
         MessageUtil.reply(event, cfg, "This module can not be configured");
     }
 
@@ -83,7 +83,7 @@ public class Inviter extends Module {
 
             ((JDAImpl) e.getJDA()).getRequester().post("https://discordapp.com/api/oauth2/authorize?client_id=" + app_id + "&scope=bot",
                     new JSONObject().put("guild_id", e.getGuild().getId()).put("permissions", 0).put("authorize", true));
-            MessageUtil.reply(e, cfg, "Bot " + botInfo.getString("username") + " was invited to this Guild");
+            MessageUtil.reply(e, cfg, "Bot **" + botInfo.getString("username") + "** was invited to this Guild");
         }));
         return commands;
     }
