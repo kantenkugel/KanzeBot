@@ -462,6 +462,17 @@ public class CommandRegistry {
             reply(e, new MessageBuilder().appendString("Stats for KanzeBot:\n")
                     .appendCodeBlock(stats, "").build());
         }));
+        commands.put("feedback", new CommandWrapper("Used to give Feedback about KanzeBot", (e, cfg) -> {
+            String[] args = MessageUtil.getArgs(e, cfg, 2);
+            if(args.length == 2) {
+                Statics.botOwner.getPrivateChannel().sendMessageAsync(new MessageBuilder().appendString("**[Feedback]** ")
+                                .appendString(e.getAuthor().getUsername()).appendString(" (").appendString(e.getAuthor().getId())
+                                .appendString(")\n").appendString(args[2]).build()
+                        , m -> reply(e, cfg, "Thanks! Your feedback has been saved!"));
+            } else {
+                reply(e, cfg, "Usage: `feedback FEEDBACK`");
+            }
+        }));
         commands.put("blacklist", new CommandWrapper("Blocks users from accessing features of this bot.\n" +
                 "Usage: `blacklist add|remove|del @Mention [@Mention]`\nOr: `blacklist add|remove|del userid`\n" +
                 "Or: `blacklist show`", (e, cfg) -> {
