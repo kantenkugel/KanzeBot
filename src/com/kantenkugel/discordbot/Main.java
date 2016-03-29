@@ -64,7 +64,6 @@ public class Main {
             Statics.CHANGES = null;
         }
 
-        CommandRegistry.init();
         Module.init();
         try {
             JDABuilder jdaBuilder;
@@ -84,7 +83,7 @@ public class Main {
                 jdaBuilder.addListener(new UpdatePrintListener(success));
             }
             Statics.jdaInstance = jdaBuilder.buildAsync();
-            CommandRegistry.setJDA(Statics.jdaInstance);
+            CommandRegistry.loadCommands(Statics.jdaInstance);
             new UpdateWatcher(Statics.jdaInstance);
         } catch(LoginException e) {
             Statics.LOG.fatal("Login informations were incorrect!");
