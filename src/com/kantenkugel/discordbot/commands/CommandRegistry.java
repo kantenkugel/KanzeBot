@@ -467,7 +467,7 @@ public class CommandRegistry {
             if(args.length == 2) {
                 Statics.botOwner.getPrivateChannel().sendMessageAsync(new MessageBuilder().appendString("**[Feedback]** ")
                                 .appendString(e.getAuthor().getUsername()).appendString(" (").appendString(e.getAuthor().getId())
-                                .appendString(")\n").appendString(args[2]).build()
+                                .appendString(")\n").appendString(args[1]).build()
                         , m -> reply(e, cfg, "Thanks! Your feedback has been saved!"));
             } else {
                 reply(e, cfg, "Usage: `feedback FEEDBACK`");
