@@ -3,6 +3,7 @@ package com.kantenkugel.discordbot;
 import com.kantenkugel.discordbot.listener.MessageEvent;
 import net.dv8tion.jda.entities.Guild;
 import net.dv8tion.jda.entities.User;
+import net.dv8tion.jda.utils.SimpleLog;
 
 import java.sql.*;
 import java.sql.Date;
@@ -10,6 +11,8 @@ import java.time.OffsetDateTime;
 import java.util.*;
 
 public class DbEngine {
+    private static final SimpleLog LOG = SimpleLog.getLog("DB");
+
     private static boolean initialized = false;
     private static Connection conn;
     private static PreparedStatement messageInsert, messageUpdate, messageDelete;
@@ -155,8 +158,8 @@ public class DbEngine {
             return "DB not available!";
         int columncount;
         int[] maxLength;
-        String[] buff;
-        List<String[]> responses = new LinkedList<>();
+        Object[] buff;
+        List<Object[]> responses = new LinkedList<>();
         try {
             ResultSetMetaData metaData = rs.getMetaData();
             columncount = metaData.getColumnCount();
@@ -170,8 +173,8 @@ public class DbEngine {
             while(rs.next()) {
                 buff = new String[columncount];
                 for(int i = 1; i <= columncount; i++) {
-                    buff[i - 1] = rs.getObject(i).toString();
-                    maxLength[i - 1] = Math.max(maxLength[i - 1], buff[i - 1].length() + 1);
+                    buff[i - 1] = rs.getObject(i) == null ? "null" : rs.getObject(i).toString();
+                    maxLength[i - 1] = Math.max(maxLength[i - 1], buff[i - 1].toString().length() + 1);
                 }
                 responses.add(buff);
             }
@@ -181,7 +184,7 @@ public class DbEngine {
             }
             String format = fb.append('\n').toString();
             StringBuilder out = new StringBuilder();
-            for(String[] response : responses) {
+            for(Object[] response : responses) {
                 out.append(String.format(format, response));
             }
             out.setLength(out.length() - 1);
@@ -217,37 +220,58 @@ public class DbEngine {
     private static boolean createTables() {
         try {
             conn.setAutoCommit(false);
-            conn.createStatement().executeUpdate("CREATE TABLE IF NOT EXISTS messages(" +
-                    "  id VARCHAR(30) NOT NULL PRIMARY KEY," +
-                    "  guildId VARCHAR(30) NOT NULL," +
-                    "  channelId VARCHAR(30) NOT NULL," +
-                    "  authorId VARCHAR(30) NOT NULL," +
-                    "  authorName VARCHAR(32) NOT NULL,\n" +
-                    "  content VARCHAR(2000) NOT NULL,\n" +
-                    "  created DATETIME NOT NULL,\n" +
-                    "  deleted BIT(1) DEFAULT 0 NOT NULL\n" +
-                    ");");
-            conn.createStatement().executeUpdate("CREATE TABLE IF NOT EXISTS message_edits(\n" +
-                    "  id INT IDENTITY PRIMARY KEY,\n" +
-                    "  messageId VARCHAR(30) NOT NULL REFERENCES messages(id) ON DELETE CASCADE,\n" +
-                    "  content VARCHAR(2000) NOT NULL,\n" +
-                    "  editTime DATETIME NOT NULL\n" +
-                    ");");
-            conn.createStatement().executeUpdate("CREATE TABLE IF NOT EXISTS bans(\n" +
-                    "  id INT IDENTITY PRIMARY KEY,\n" +
-                    "  guildId VARCHAR(30) NOT NULL,\n" +
-                    "  bannedId VARCHAR(30) NOT NULL,\n" +
-                    "  bannedName VARCHAR(32) NOT NULL,\n" +
-                    "  executorId VARCHAR(30) NOT NULL,\n" +
-                    "  executorName VARCHAR(32) NOT NULL,\n" +
-                    "  reason VARCHAR(250) NOT NULL,\n" +
-                    "  createTime DATETIME NOT NULL\n" +
-                    ");");
-            conn.createStatement().executeUpdate("CREATE TABLE IF NOT EXISTS users(\n" +
-                    "  id VARCHAR(30) NOT NULL PRIMARY KEY,\n" +
-                    "  username VARCHAR(32) NOT NULL,\n" +
-                    "  aliases VARCHAR(1000) NOT NULL,\n" +
-                    ");");
+            Set<String> tables = new HashSet<>();
+            ResultSet tableRows = conn.getMetaData().getTables(null, null, null, new String[]{"TABLE"});
+            while(tableRows.next()) {
+                tables.add(tableRows.getString("TABLE_NAME").toLowerCase());
+            }
+            tableRows.close();
+            Statement statement = conn.createStatement();
+            if(!tables.contains("messages")) {
+                LOG.info("Creating table messages");
+                statement.executeUpdate("CREATE TABLE messages(" +
+                        "  id VARCHAR(30) NOT NULL PRIMARY KEY," +
+                        "  guildId VARCHAR(30) NOT NULL," +
+                        "  channelId VARCHAR(30) NOT NULL," +
+                        "  authorId VARCHAR(30) NOT NULL," +
+                        "  authorName VARCHAR(32) NOT NULL," +
+                        "  content VARCHAR(2000) NOT NULL," +
+                        "  created DATETIME NOT NULL," +
+                        "  deleted BIT(1) DEFAULT 0 NOT NULL" +
+                        ");");
+            }
+            if(!tables.contains("message_edits")) {
+                LOG.info("Creating table message_edits");
+                statement.executeUpdate("CREATE TABLE message_edits(" +
+                        "  id INT IDENTITY PRIMARY KEY," +
+                        "  messageId VARCHAR(30) NOT NULL," +
+                        "  content VARCHAR(2000) NOT NULL," +
+                        "  editTime DATETIME NOT NULL," +
+                        "  CONSTRAINT message_edits_msg_fk FOREIGN KEY (messageId) REFERENCES messages(id) ON DELETE CASCADE" +
+                        ");");
+            }
+            if(!tables.contains("bans")) {
+                LOG.info("Creating table bans");
+                statement.executeUpdate("CREATE TABLE bans(" +
+                        "  id INT IDENTITY PRIMARY KEY," +
+                        "  guildId VARCHAR(30) NOT NULL," +
+                        "  bannedId VARCHAR(30) NOT NULL," +
+                        "  bannedName VARCHAR(32) NOT NULL," +
+                        "  executorId VARCHAR(30) NOT NULL," +
+                        "  executorName VARCHAR(32) NOT NULL," +
+                        "  reason VARCHAR(250) NOT NULL," +
+                        "  createTime DATETIME NOT NULL" +
+                        ");");
+            }
+            if(!tables.contains("users")) {
+                LOG.info("Creating table users");
+                statement.executeUpdate("CREATE TABLE users(" +
+                        "  id VARCHAR(30) NOT NULL PRIMARY KEY," +
+                        "  username VARCHAR(32) NOT NULL," +
+                        "  aliases VARCHAR(1000) NOT NULL" +
+                        ");");
+            }
+            statement.close();
             conn.commit();
             return true;
         } catch(SQLException e) {
@@ -270,6 +294,8 @@ public class DbEngine {
     }
 
     public static void close() {
+        if(!initialized)
+            return;
         try {
             messageInsert.close();
             messageDelete.close();
