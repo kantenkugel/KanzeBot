@@ -1,5 +1,6 @@
 package com.kantenkugel.discordbot.util;
 
+import com.kantenkugel.discordbot.DbEngine;
 import com.kantenkugel.discordbot.Statics;
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.entities.impl.JDAImpl;
@@ -78,15 +79,11 @@ public class MiscUtil {
         thread.start();
     }
 
-    public static void shutdown() {
-        System.exit(Statics.NORMAL_EXIT_CODE);
-    }
-
-    public static void restart() {
-        System.exit(Statics.RESTART_EXIT_CODE);
-    }
-
-    public static void update() {
-        System.exit(Statics.UPDATE_EXIT_CODE);
+    public static void shutdown(int code) {
+        await(Statics.jdaInstance, () -> {
+            DbEngine.close();
+            System.exit(code);
+        });
+        Statics.jdaInstance.shutdown();
     }
 }

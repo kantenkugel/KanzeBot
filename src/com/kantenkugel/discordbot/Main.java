@@ -64,6 +64,7 @@ public class Main {
             Statics.CHANGES = null;
         }
 
+        //DbEngine.init();
         Module.init();
         try {
             JDABuilder jdaBuilder;

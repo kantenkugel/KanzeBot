@@ -25,6 +25,6 @@ public class UpdateValidator extends Thread {
         }
         System.out.println("Failed to start, reverting to old version");
         System.out.flush();
-        System.exit(Statics.REVERT_EXIT_CODE);
+        MiscUtil.shutdown(Statics.REVERT_EXIT_CODE);
     }
 }

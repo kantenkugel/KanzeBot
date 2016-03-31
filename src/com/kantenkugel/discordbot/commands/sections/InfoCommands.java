@@ -15,7 +15,7 @@ import java.util.*;
 
 import static com.kantenkugel.discordbot.util.MessageUtil.reply;
 
-public class InfoSection implements CommandSection {
+public class InfoCommands implements CommandSection {
     @Override
     public void register(Map<String, Command> registry, JDA api) {
         registry.put("about", new CommandWrapper("Shows some basic info about this Bot", (e, cfg) -> {

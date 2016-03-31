@@ -23,7 +23,7 @@ import java.util.*;
 
 import static com.kantenkugel.discordbot.util.MessageUtil.reply;
 
-public class ModSection implements CommandSection {
+public class ModCommands implements CommandSection {
     @Override
     public void register(Map<String, Command> registry, JDA api) {
         registerTxtCommands(registry);

@@ -9,6 +9,7 @@ import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.Permission;
 import net.dv8tion.jda.entities.User;
 import net.dv8tion.jda.entities.impl.JDAImpl;
+import net.dv8tion.jda.requests.Requester;
 import net.dv8tion.jda.utils.PermissionUtil;
 import org.json.JSONObject;
 
@@ -68,7 +69,7 @@ public class Inviter extends Module {
                 }
             }
 
-            JSONObject botInfo = ((JDAImpl) e.getJDA()).getRequester().get("https://discordapp.com/api/oauth2/authorize?client_id=" + app_id + "&scope=bot");
+            JSONObject botInfo = ((JDAImpl) e.getJDA()).getRequester().get("https://discordapp.com/api/oauth2/authorize?client_id=" + app_id + "&scope=bot").getObject();
             if(botInfo == null || !botInfo.has("bot")) {
                 MessageUtil.reply(e, cfg, "Could not resolve Bot-name... is this a valid application-id?");
                 return;
@@ -81,9 +82,13 @@ public class Inviter extends Module {
                 return;
             }
 
-            ((JDAImpl) e.getJDA()).getRequester().post("https://discordapp.com/api/oauth2/authorize?client_id=" + app_id + "&scope=bot",
+            Requester.Response response = ((JDAImpl) e.getJDA()).getRequester().post("https://discordapp.com/api/oauth2/authorize?client_id=" + app_id + "&scope=bot",
                     new JSONObject().put("guild_id", e.getGuild().getId()).put("permissions", 0).put("authorize", true));
-            MessageUtil.reply(e, cfg, "Bot **" + botInfo.getString("username") + "** was invited to this Guild");
+            if(response.isOk()) {
+                MessageUtil.reply(e, cfg, "Bot **" + botInfo.getString("username") + "** was invited to this Guild");
+            } else {
+                MessageUtil.reply(e, cfg, "Bot **" + botInfo.getString("username") + "** could not be invited!");
+            }
         }));
         return commands;
     }

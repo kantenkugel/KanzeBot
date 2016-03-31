@@ -16,11 +16,11 @@ import java.util.Optional;
 
 import static com.kantenkugel.discordbot.util.MessageUtil.reply;
 
-public class ConfigSection implements CommandSection {
+public class ConfigCommand implements CommandSection {
     @Override
     public void register(Map<String, Command> registry, JDA api) {
         registry.put("config", new CommandWrapper("Allows the server-owner (you) to configure different parts of this bot. To see more detailed help, call it without arguments"
-                ,ConfigSection::config)
+                , ConfigCommand::config)
                 .acceptPrivate(false).acceptPriv(Command.Priv.OWNER));
     }
 

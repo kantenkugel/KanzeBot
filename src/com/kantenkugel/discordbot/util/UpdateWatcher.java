@@ -35,8 +35,7 @@ public class UpdateWatcher extends Thread {
                         if(cmd == null)
                             cmd = "restart";
                         getChannel(api).sendMessage("Wrapper requested to " + cmd + ". Doing so now...");
-                        MiscUtil.await(api, () -> System.exit(code));
-                        api.shutdown();
+                        MiscUtil.shutdown(code);
                         return;
                     default:
                         System.out.println("UpdateWatcher got unknown command-code " + code + "... ignoring");

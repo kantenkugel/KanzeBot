@@ -25,7 +25,7 @@ import java.util.Map;
 
 import static com.kantenkugel.discordbot.util.MessageUtil.reply;
 
-public class MiscSection implements CommandSection {
+public class MiscCommands implements CommandSection {
     @Override
     public void register(Map<String, Command> registry, JDA api) {
         registry.put("feedback", new CommandWrapper("Used to give Feedback about KanzeBot", (e, cfg) -> {
@@ -92,7 +92,7 @@ public class MiscSection implements CommandSection {
             try {
                 //left edge at 30, right one at 210 => 180 width
                 //y = 200
-                BufferedImage read = ImageIO.read(MiscSection.class.getClassLoader().getResourceAsStream("rip.png"));
+                BufferedImage read = ImageIO.read(MiscCommands.class.getClassLoader().getResourceAsStream("rip.png"));
                 BufferedImage image = new BufferedImage(read.getWidth(), read.getHeight(), BufferedImage.TYPE_INT_ARGB);
                 Graphics2D g = image.createGraphics();
                 g.drawImage(read, 0, 0, null);

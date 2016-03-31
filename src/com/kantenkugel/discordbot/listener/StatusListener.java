@@ -1,5 +1,6 @@
 package com.kantenkugel.discordbot.listener;
 
+import com.kantenkugel.discordbot.DbEngine;
 import com.kantenkugel.discordbot.Statics;
 import com.kantenkugel.discordbot.commands.CommandRegistry;
 import com.kantenkugel.discordbot.config.BotConfig;
@@ -13,6 +14,7 @@ import net.dv8tion.jda.events.ReadyEvent;
 import net.dv8tion.jda.events.ReconnectedEvent;
 import net.dv8tion.jda.events.guild.GuildJoinEvent;
 import net.dv8tion.jda.events.guild.GuildLeaveEvent;
+import net.dv8tion.jda.events.user.UserNameUpdateEvent;
 import net.dv8tion.jda.hooks.EventListener;
 
 public class StatusListener implements EventListener {
@@ -26,6 +28,8 @@ public class StatusListener implements EventListener {
             onGuildJoin((GuildJoinEvent) event);
         } else if(event.getClass() == GuildLeaveEvent.class) {
             onGuildLeave((GuildLeaveEvent) event);
+        } else if(event.getClass() == UserNameUpdateEvent.class) {
+            DbEngine.updateUser(((UserNameUpdateEvent) event).getUser());
         }
     }
 

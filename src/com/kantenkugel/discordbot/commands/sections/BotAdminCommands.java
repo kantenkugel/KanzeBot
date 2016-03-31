@@ -1,5 +1,7 @@
 package com.kantenkugel.discordbot.commands.sections;
 
+import com.kantenkugel.discordbot.DbEngine;
+import com.kantenkugel.discordbot.Statics;
 import com.kantenkugel.discordbot.commands.Command;
 import com.kantenkugel.discordbot.commands.CommandWrapper;
 import com.kantenkugel.discordbot.commands.CustomCommand;
@@ -16,6 +18,9 @@ import net.dv8tion.jda.entities.User;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
+import java.sql.SQLException;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -23,7 +28,7 @@ import java.util.Random;
 
 import static com.kantenkugel.discordbot.util.MessageUtil.reply;
 
-public class BotAdminSection implements CommandSection {
+public class BotAdminCommands implements CommandSection {
 
     private static final ScriptEngine engine = new ScriptEngineManager().getEngineByName("Nashorn");
 
@@ -61,18 +66,15 @@ public class BotAdminSection implements CommandSection {
         //Control-commands
         registry.put("shutdown", new CommandWrapper("Shuts down this bot. Be careful or Kantenkugel will kill you!", (msg, cfg) -> {
             MessageUtil.replySync(msg, cfg, "OK, Bye!");
-            MiscUtil.await(msg.getJDA(), MiscUtil::shutdown);
-            msg.getJDA().shutdown();
+            MiscUtil.shutdown(Statics.NORMAL_EXIT_CODE);
         }).acceptPriv(Command.Priv.BOTADMIN));
         registry.put("restart", new CommandWrapper("Restarts this bot.", (msg, cfg) -> {
             MessageUtil.replySync(msg, cfg, "OK, BRB!");
-            MiscUtil.await(msg.getJDA(), MiscUtil::restart);
-            msg.getJDA().shutdown();
+            MiscUtil.shutdown(Statics.RESTART_EXIT_CODE);
         }).acceptPriv(Command.Priv.BOTADMIN));
         registry.put("update", new CommandWrapper("Updates this bot.", (msg, cfg) -> {
             MessageUtil.replySync(msg, cfg, "OK, BRB!");
-            MiscUtil.await(msg.getJDA(), MiscUtil::update);
-            msg.getJDA().shutdown();
+            MiscUtil.shutdown(Statics.UPDATE_EXIT_CODE);
         }).acceptPriv(Command.Priv.BOTADMIN));
 
         //Blacklist
@@ -129,6 +131,31 @@ public class BotAdminSection implements CommandSection {
                     return;
             }
             reply(e, cfg, "User(s) added/removed from blacklist!");
+        }).acceptPriv(Command.Priv.BOTADMIN));
+
+        registry.put("delay", new CommandWrapper("Gets the delay between a message create and KanzeBot reading it", (e, cfg) -> {
+            long until = e.getMessage().getTime().until(OffsetDateTime.now(), ChronoUnit.MILLIS);
+            reply(e, cfg, "Delay to KanzeBot: " + until + "ms");
+        }).acceptPriv(Command.Priv.BOTADMIN));
+
+        registry.put("sql", new CommandWrapper("Executes SQL on the db", (e, cfg) -> {
+            String[] args = MessageUtil.getArgs(e, cfg, 2);
+            if(args.length == 1) {
+                reply(e, cfg, "Please provide a SQL string");
+            } else if(!args[1].substring(0, 6).toLowerCase().equals("select")) {
+                reply(e, cfg, "Only SELECT allowed, sry!");
+            } else {
+                try {
+                    String response = "Response:\n`" + DbEngine.stringify(DbEngine.query(args[1])) + "`";
+                    if(response.length() > 2000) {
+                        reply(e, cfg, "Sry, the response is to big!");
+                    } else {
+                        reply(e, cfg, response);
+                    }
+                } catch(SQLException ex) {
+                    reply(e, cfg, "There was an error running the query:\n" + ex.getMessage());
+                }
+            }
         }).acceptPriv(Command.Priv.BOTADMIN));
     }
 }

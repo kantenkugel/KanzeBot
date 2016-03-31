@@ -1,7 +1,10 @@
 # Misc
 /out/
 /meta/
+/META-INF/
 /configs/
+/logs/
+/db/
 tokens.json
 kanzeBotConfig.json
 
@@ -16,3 +19,4 @@ kanzeBotConfig.json
 *.iml
 *.ipr
 *.iws
+*.ids
