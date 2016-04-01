@@ -39,7 +39,7 @@ public class DbEngine {
         if(e.isEdit()) {
             try {
                 messageUpdate.setString(1, e.getMessage().getId());
-                messageUpdate.setString(2, e.getMessage().getContent());
+                messageUpdate.setString(2, e.getMessage().getRawContent());
                 messageUpdate.setDate(3, new Date(e.getMessage().getEditedTimestamp().toEpochSecond() * 1000));
                 messageUpdate.executeUpdate();
             } catch(SQLException ignored) {
@@ -53,7 +53,7 @@ public class DbEngine {
                 messageInsert.setString(3, e.getTextChannel().getId());
                 messageInsert.setString(4, e.getAuthor().getId());
                 messageInsert.setString(5, e.getAuthor().getUsername());
-                messageInsert.setString(6, e.getMessage().getContent());
+                messageInsert.setString(6, e.getMessage().getRawContent());
                 messageInsert.setDate(7, new Date(e.getMessage().getTime().toEpochSecond() * 1000));
                 messageInsert.executeUpdate();
             } catch(SQLException ex) {
