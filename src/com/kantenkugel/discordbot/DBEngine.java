@@ -23,14 +23,18 @@ public class DbEngine {
         if(initialized)
             return;
         try {
-            Class.forName("org.hsqldb.jdbcDriver");
-            conn = DriverManager.getConnection("jdbc:hsqldb:file:db/kanzedb", "SA", "");
+            open();
             if(createTables())
                 createStatements();
             initialized = true;
         } catch(SQLException | ClassNotFoundException e) {
             e.printStackTrace();
         }
+    }
+
+    private static void open() throws ClassNotFoundException, SQLException {
+        Class.forName("org.hsqldb.jdbcDriver");
+        conn = DriverManager.getConnection("jdbc:hsqldb:file:db/kanzedb", "SA", "");
     }
 
     public static void handleMessage(MessageEvent e) {
@@ -229,7 +233,7 @@ public class DbEngine {
             Statement statement = conn.createStatement();
             if(!tables.contains("messages")) {
                 LOG.info("Creating table messages");
-                statement.executeUpdate("CREATE TABLE messages(" +
+                statement.executeUpdate("CREATE CACHED TABLE messages(" +
                         "  id VARCHAR(30) NOT NULL PRIMARY KEY," +
                         "  guildId VARCHAR(30) NOT NULL," +
                         "  channelId VARCHAR(30) NOT NULL," +
@@ -242,7 +246,7 @@ public class DbEngine {
             }
             if(!tables.contains("message_edits")) {
                 LOG.info("Creating table message_edits");
-                statement.executeUpdate("CREATE TABLE message_edits(" +
+                statement.executeUpdate("CREATE CACHED TABLE message_edits(" +
                         "  id INT IDENTITY PRIMARY KEY," +
                         "  messageId VARCHAR(30) NOT NULL," +
                         "  content VARCHAR(2000) NOT NULL," +
@@ -252,7 +256,7 @@ public class DbEngine {
             }
             if(!tables.contains("bans")) {
                 LOG.info("Creating table bans");
-                statement.executeUpdate("CREATE TABLE bans(" +
+                statement.executeUpdate("CREATE CACHED TABLE bans(" +
                         "  id INT IDENTITY PRIMARY KEY," +
                         "  guildId VARCHAR(30) NOT NULL," +
                         "  bannedId VARCHAR(30) NOT NULL," +
@@ -265,7 +269,7 @@ public class DbEngine {
             }
             if(!tables.contains("users")) {
                 LOG.info("Creating table users");
-                statement.executeUpdate("CREATE TABLE users(" +
+                statement.executeUpdate("CREATE CACHED TABLE users(" +
                         "  id VARCHAR(30) NOT NULL PRIMARY KEY," +
                         "  username VARCHAR(32) NOT NULL," +
                         "  aliases VARCHAR(1000) NOT NULL" +
@@ -334,5 +338,40 @@ public class DbEngine {
             this.getExecutorName = getExecutorName;
             this.timestampS = timestampS;
         }
+    }
+
+    public static void drop() {
+        try {
+            open();
+            conn.setAutoCommit(false);
+            Set<String> tables = new HashSet<>();
+            ResultSet tableRows = conn.getMetaData().getTables(null, null, null, new String[]{"TABLE"});
+            while(tableRows.next()) {
+                tables.add(tableRows.getString("TABLE_NAME").toLowerCase());
+            }
+            tableRows.close();
+            Statement statement = conn.createStatement();
+            for(String table : tables) {
+                statement.executeUpdate("DROP TABLE " + table + ";");
+            }
+            statement.close();
+            conn.commit();
+        } catch(ClassNotFoundException | SQLException e) {
+            try {
+                conn.rollback();
+            } catch(SQLException e1) {
+                e1.printStackTrace();
+            }
+            e.printStackTrace();
+        } finally {
+            if(conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                } catch(SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        close();
     }
 }
