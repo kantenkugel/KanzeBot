@@ -6,16 +6,10 @@ import com.kantenkugel.discordbot.config.ServerConfig;
 import com.kantenkugel.discordbot.listener.MessageEvent;
 import com.kantenkugel.discordbot.util.MessageUtil;
 import net.dv8tion.jda.JDA;
-import net.dv8tion.jda.Permission;
-import net.dv8tion.jda.entities.User;
-import net.dv8tion.jda.entities.impl.JDAImpl;
-import net.dv8tion.jda.requests.Requester;
-import net.dv8tion.jda.utils.PermissionUtil;
 import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Inviter extends Module {
@@ -44,6 +38,11 @@ public class Inviter extends Module {
     @Override
     public Map<String, Command> getCommands() {
         Map<String, Command> commands = new HashMap<>();
+        commands.put("invite", new CommandWrapper("This command/modules is getting removed!", (e, cfg) -> {
+            MessageUtil.reply(e, cfg, "This command/modules is getting removed... " +
+                    "If you want, you can join the `KanzeBot Hangout` Server (invite in `about` command) to discuss its future!");
+        }));
+        /*
         commands.put("invite", new CommandWrapper("Invites a bot to this Guild.\n**Usage:** `invite application_id`\n" +
                 "**Or:** `invite Oauth-URL`", (e, cfg) -> {
             if(!PermissionUtil.checkPermission(e.getJDA().getSelfInfo(), Permission.MANAGE_SERVER, e.getGuild())) {
@@ -90,6 +89,7 @@ public class Inviter extends Module {
                 MessageUtil.reply(e, cfg, "Bot **" + botInfo.getString("username") + "** could not be invited!");
             }
         }));
+        */
         return commands;
     }
 

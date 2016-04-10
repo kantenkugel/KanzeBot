@@ -9,14 +9,21 @@ import net.dv8tion.jda.JDA;
 import org.json.JSONObject;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 public abstract class Module {
 
     private static Map<String, Class<? extends Module>> modules = new HashMap<>();
+    private static Set<String> moduleList = new HashSet<>();
 
     public static Map<String, Class<? extends Module>> getModules() {
         return modules;
+    }
+
+    public static Set<String> getModuleList() {
+        return moduleList;
     }
 
     public static void init() {
@@ -36,6 +43,9 @@ public abstract class Module {
         try {
             Module module = moduleClass.newInstance();
             modules.putIfAbsent(module.getName().toLowerCase(), moduleClass);
+            if(!module.hideModule()) {
+                moduleList.add(module.getName().toLowerCase());
+            }
             if(module.availableInPms()) {
                 ServerConfig.PMConfig.registerModule(module.getName().toLowerCase());
             }
@@ -127,5 +137,15 @@ public abstract class Module {
      * Currently unused, but should unload resources from this module (called once this module is removed from the last guild)
      */
     public void unload() {
+    }
+
+    /**
+     * Used to hide modules (don't show them as available)
+     *
+     * @return
+     *      True - if this module should be hidden
+     */
+    public boolean hideModule() {
+        return false;
     }
 }

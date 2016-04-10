@@ -11,7 +11,10 @@ public class TaskHelper {
         if(tasks.containsKey(name) && tasks.get(name).isAlive()) {
             return false;
         }
-        Thread t = new Thread(runnable);
+        Thread t = new Thread(()-> {
+            runnable.run();
+            tasks.remove(name);
+        });
         tasks.put(name, t);
         t.start();
         return true;

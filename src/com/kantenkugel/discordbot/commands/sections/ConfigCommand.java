@@ -20,12 +20,15 @@ public class ConfigCommand implements CommandSection {
     @Override
     public void register(Map<String, Command> registry, JDA api) {
         registry.put("config", new CommandWrapper("Allows the server-owner (you) to configure different parts of this bot. To see more detailed help, call it without arguments"
-                , ConfigCommand::config)
+                , (e, cfg) -> ConfigCommand.config(e, cfg, MessageUtil.getArgs(e, cfg)))
                 .acceptPrivate(false).acceptPriv(Command.Priv.OWNER));
+        registry.put("module", new CommandWrapper("Shortcut to `config modules`", (e, cfg) -> {
+            String[] args = ("config modules" + e.getMessage().getContent().substring(cfg.getPrefix().length() + 6)).split("\\s+");
+            ConfigCommand.config(e, cfg, args);
+        }).acceptPriv(Command.Priv.OWNER));
     }
 
-    private static void config(MessageEvent event, ServerConfig cfg) {
-        String[] args = MessageUtil.getArgs(event, cfg);
+    private static void config(MessageEvent event, ServerConfig cfg, String[] args) {
         if(args.length == 1) {
             reply(event, cfg, "Available subcommands: prefix, restrictTexts, leave, admins, mods, modules, allowEveryone\nTo get more details, run " + cfg.getPrefix() + args[0] + " SUBCOMMAND");
         } else if(args.length > 1) {
@@ -176,7 +179,7 @@ public class ConfigCommand implements CommandSection {
                         reply(event, cfg, "Currently enabled Modules:\n\t"
                                 + (cfg.getModules().size() == 0 ? "None" : cfg.getModules().keySet().stream().reduce((s1, s2) -> s1 + ", " + s2).get())
                                 + "\nAvailable Modules:\n\t"
-                                + (Module.getModules().size() == 0 ? "None" : Module.getModules().keySet().stream().reduce((s1, s2) -> s1 + ", " + s2).get()));
+                                + (Module.getModuleList().size() == 0 ? "None" : Module.getModuleList().stream().reduce((s1, s2) -> s1 + ", " + s2).get()));
                     } else {
                         String val = null;
                         if(args.length > 3) {
