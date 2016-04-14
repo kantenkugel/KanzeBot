@@ -1,21 +1,12 @@
 package com.kantenkugel.discordbot.listener;
 
-import com.kantenkugel.discordbot.Statics;
-import com.kantenkugel.discordbot.config.BlackList;
-import com.kantenkugel.discordbot.config.ServerConfig;
-import net.dv8tion.jda.Permission;
-import net.dv8tion.jda.entities.MessageChannel;
-import net.dv8tion.jda.entities.TextChannel;
 import net.dv8tion.jda.events.Event;
-import net.dv8tion.jda.events.InviteReceivedEvent;
 import net.dv8tion.jda.hooks.EventListener;
-import net.dv8tion.jda.utils.InviteUtil;
-
-import java.util.Optional;
 
 public class InviteListener implements EventListener {
     @Override
     public void onEvent(Event e) {
+        /*
         if(e.getClass() == InviteReceivedEvent.class) {
             InviteReceivedEvent event = (InviteReceivedEvent) e;
             if(BlackList.contains(event.getAuthor())) {
@@ -52,5 +43,6 @@ public class InviteListener implements EventListener {
                 });
             }
         }
+        */
     }
 }

@@ -214,7 +214,7 @@ public class Todo extends Module {
         }
         Map<String, List<String>> messages = new HashMap<>();
         List<String> toFind = new ArrayList<>(todoMessage);
-        MessageHistory history = new MessageHistory(api, api.getTextChannelById(channel));
+        MessageHistory history = new MessageHistory(api.getTextChannelById(channel));
         while(!toFind.isEmpty()) {
             List<Message> retrieve = history.retrieve();
             if(retrieve == null) {

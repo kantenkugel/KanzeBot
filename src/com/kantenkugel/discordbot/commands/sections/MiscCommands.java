@@ -41,7 +41,7 @@ public class MiscCommands implements CommandSection {
         }));
 
         registry.put("mentioned", new CommandWrapper("Looks for the last message in this Channel where you got mentioned.", (e, cfg) -> {
-            MessageHistory messageHistory = new MessageHistory(e.getJDA(), e.getTextChannel());
+            MessageHistory messageHistory = new MessageHistory(e.getTextChannel());
             User user = e.getMessage().getMentionedUsers().size() > 0 ? e.getMessage().getMentionedUsers().get(0) : e.getAuthor();
             for(int i = 0; i < 5; i++) {
                 List<Message> msgs = messageHistory.retrieve();

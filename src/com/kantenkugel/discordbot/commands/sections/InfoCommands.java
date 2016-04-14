@@ -90,9 +90,10 @@ public class InfoCommands implements CommandSection {
                             "Channel:\n\t%-15s%s\n\t%-15s%s\n" +
                             "Guild:\n\t%-15s%s\n\t%-15s%s\n\t%-15s%s\n```",
                     "Name", event.getAuthor().getUsername(), "ID", event.getAuthor().getId(), "Discriminator", event.getAuthor().getDiscriminator(),
-                    "Avatar", event.getAuthor().getAvatarUrl()==null?"None":event.getAuthor().getAvatarUrl(),
+                    "Avatar", event.getAuthor().getAvatarUrl() == null ? "None" : '<' + event.getAuthor().getAvatarUrl() + '>',
                     "Name", event.getTextChannel().getName(), "ID", event.getTextChannel().getId(),
-                    "Name", event.getGuild().getName(), "ID", event.getGuild().getId(), "Icon", event.getGuild().getIconUrl()==null?"None":event.getGuild().getIconUrl());
+                    "Name", event.getGuild().getName(), "ID", event.getGuild().getId(),
+                    "Icon", event.getGuild().getIconUrl() == null ? "None" : '<' + event.getGuild().getIconUrl() + '>');
             reply(event, cfg, text, false);
         }).acceptPrivate(false));
 

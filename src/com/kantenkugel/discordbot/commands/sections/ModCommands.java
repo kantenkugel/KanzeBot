@@ -254,7 +254,7 @@ public class ModCommands implements CommandSection {
 
         public ClearRunner(TextChannel channel, OffsetDateTime time, List<User> mentioned, String msg) {
             this.channel = channel;
-            this.history = new MessageHistory(channel.getJDA(), channel);
+            this.history = new MessageHistory(channel);
             this.time = time;
             this.mentioned = mentioned.isEmpty() ? null : mentioned;
             this.message = new MessageBuilder().appendString(msg).build();

@@ -133,9 +133,12 @@ public class BotAdminCommands implements CommandSection {
             reply(e, cfg, "User(s) added/removed from blacklist!");
         }).acceptPriv(Command.Priv.BOTADMIN));
 
-        registry.put("delay", new CommandWrapper("Gets the delay between a message create and KanzeBot reading it", (e, cfg) -> {
+        registry.put("ping", new CommandWrapper("Gets the delay between a message create and KanzeBot reading it", (e, cfg) -> {
             long until = e.getMessage().getTime().until(OffsetDateTime.now(), ChronoUnit.MILLIS);
-            reply(e, cfg, "Delay to KanzeBot: " + until + "ms");
+            e.getChannel().sendMessageAsync("Ping: "+until+"ms", msg -> {
+                long ping = e.getMessage().getTime().until(msg.getTime(), ChronoUnit.MILLIS);
+                msg.updateMessage("Ping: " + ping + "ms");
+            });
         }).acceptPriv(Command.Priv.BOTADMIN));
 
         registry.put("sql", new CommandWrapper("Executes SQL on the db", (e, cfg) -> {

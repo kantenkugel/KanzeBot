@@ -317,7 +317,7 @@ public class ChannelQueue extends Module {
             return;
         }
         Set<String> toFind = new HashSet<>(messageIds);
-        MessageHistory history = new MessageHistory(api, api.getTextChannelById(channel));
+        MessageHistory history = new MessageHistory(api.getTextChannelById(channel));
         while(!toFind.isEmpty()) {
             List<Message> retrieve = history.retrieve();
             if(retrieve == null) {

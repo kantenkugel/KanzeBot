@@ -69,9 +69,9 @@ public class Main {
         try {
             JDABuilder jdaBuilder;
             if(args[1].equals("-")) {
-                jdaBuilder = new JDABuilder(args[0]);
+                jdaBuilder = new JDABuilder().setBotToken(args[0]);
             } else {
-                jdaBuilder = new JDABuilder(args[0], args[1]);
+                throw new RuntimeException("Normal accs are no longer supported!");
             }
             jdaBuilder.setAudioEnabled(false)
                     .addListener(new InviteListener()).addListener(new MessageListener()).addListener(new StatusListener());
