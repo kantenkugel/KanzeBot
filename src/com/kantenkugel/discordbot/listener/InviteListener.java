@@ -1,12 +1,14 @@
 package com.kantenkugel.discordbot.listener;
 
+import com.kantenkugel.discordbot.config.BlackList;
+import net.dv8tion.jda.entities.MessageChannel;
 import net.dv8tion.jda.events.Event;
+import net.dv8tion.jda.events.InviteReceivedEvent;
 import net.dv8tion.jda.hooks.EventListener;
 
 public class InviteListener implements EventListener {
     @Override
     public void onEvent(Event e) {
-        /*
         if(e.getClass() == InviteReceivedEvent.class) {
             InviteReceivedEvent event = (InviteReceivedEvent) e;
             if(BlackList.contains(event.getAuthor())) {
@@ -21,28 +23,10 @@ public class InviteListener implements EventListener {
                     } catch (RuntimeException ignored) {} //no write perms or blocked pm
                     return;
                 }
-                Statics.LOG.info("Joining Guild " + event.getInvite().getGuildName() + " via invite of " + event.getAuthor().getUsername());
-                InviteUtil.join(event.getInvite(), event.getJDA(), guild -> {
-                    String text = "Joined Guild " + guild.getName() + "! Server owner should probably configure me via the config command\nDefault command-prefix is: "
-                            + ServerConfig.DEFAULT_PREFIX + "\nThe owner can reset it by calling -kbreset";
-                    try {
-                        channel.sendMessage(text);
-                    } catch(RuntimeException ignored) {} //no write perms or blocked pm
-                    text = "Joined Guild via invite of " + event.getAuthor().getUsername() + " (ID: " + event.getAuthor().getId() +
-                            ")! Server owner should probably configure me via the config command\n" +
-                            "Default command-prefix is: " + ServerConfig.DEFAULT_PREFIX + "\nThe owner can reset it by calling -kbreset";
-                    if(guild.getPublicChannel().checkPermission(event.getJDA().getSelfInfo(), Permission.MESSAGE_WRITE)) {
-                        guild.getPublicChannel().sendMessageAsync(text, null);
-                    } else {
-                        Optional<TextChannel> first = guild.getTextChannels().parallelStream().filter(tc -> tc.checkPermission(event.getJDA().getSelfInfo(), Permission.MESSAGE_WRITE))
-                                .sorted((c1, c2) -> Integer.compare(c1.getPosition(), c2.getPosition())).findFirst();
-                        if(first.isPresent()) {
-                            first.get().sendMessage(text);
-                        }
-                    }
-                });
+                channel.sendMessageAsync("I can no longer be invited via invite-links! " +
+                        "Please use following link to invite me to your server (manage_server permission required): " +
+                        "https://discordapp.com/oauth2/authorize?&client_id=157896712130789376&scope=bot", null);
             }
         }
-        */
     }
 }
