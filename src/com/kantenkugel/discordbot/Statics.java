@@ -9,6 +9,7 @@ import net.dv8tion.jda.utils.SimpleLog;
 public class Statics {
     public static final SimpleLog LOG = SimpleLog.getLog(BotConfig.get("logname", "KanzeBot"));
     public static long START_TIME = System.currentTimeMillis();
+    public static String OAUTH_ID = BotConfig.get("oauthAppId", "");
 
     public static User botOwner;
 

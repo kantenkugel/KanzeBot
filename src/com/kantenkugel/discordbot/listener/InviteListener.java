@@ -1,5 +1,6 @@
 package com.kantenkugel.discordbot.listener;
 
+import com.kantenkugel.discordbot.Statics;
 import com.kantenkugel.discordbot.config.BlackList;
 import net.dv8tion.jda.entities.MessageChannel;
 import net.dv8tion.jda.events.Event;
@@ -23,9 +24,13 @@ public class InviteListener implements EventListener {
                     } catch (RuntimeException ignored) {} //no write perms or blocked pm
                     return;
                 }
-                channel.sendMessageAsync("I can no longer be invited via invite-links! " +
-                        "Please use following link to invite me to your server (manage_server permission required): " +
-                        "https://discordapp.com/oauth2/authorize?&client_id=168673138949750786&scope=bot", null);
+                if(Statics.OAUTH_ID.trim().length() == 0) {
+                    channel.sendMessageAsync("I am currently not configured to accept invites!", null);
+                } else {
+                    channel.sendMessageAsync("I can no longer be invited via invite-links! " +
+                            "Please use following link to invite me to your server (manage_server permission required): " +
+                            "https://discordapp.com/oauth2/authorize?&client_id=" + Statics.OAUTH_ID + "&scope=bot", null);
+                }
             }
         }
     }

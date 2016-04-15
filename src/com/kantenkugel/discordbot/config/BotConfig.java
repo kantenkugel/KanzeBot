@@ -25,6 +25,7 @@ public class BotConfig {
         save();
     }
 
+    @SuppressWarnings("unchecked")
     public static <T> T get(@NotNull String key) {
         if(config.has(key)) {
             try {
@@ -54,13 +55,36 @@ public class BotConfig {
     public static boolean load() {
         boolean exists = Files.exists(configPath);
         try {
+            JSONObject def = getDefault();
             if(!exists) {
-                Files.write(configPath, "{}".getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE);
+                Files.write(configPath, def.toString(4).getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE);
+            } else {
+                config = new JSONObject(new String(Files.readAllBytes(configPath), StandardCharsets.UTF_8));
+                for(String key : def.keySet()) {
+                    if(!config.has(key)) {
+                        config.put(key, def.get(key));
+                        exists = false;
+                    }
+                }
+                if(!exists) {
+                    save();
+                }
             }
-            config = new JSONObject(new String(Files.readAllBytes(configPath), StandardCharsets.UTF_8));
-        } catch(IOException ignored) {
+        } catch(IOException ex) {
+            System.err.println("Error reading/writing config file: ");
+            ex.printStackTrace();
+            return false;
         }
         return exists;
+    }
+
+    private static JSONObject getDefault() {
+        return new JSONObject()
+                .put("ownerId", "")
+                .put("logname", "KanzeBot")
+                .put("carbonKey", "")
+                .put("oauthAppId", "")
+                .put("logToFiles", true);
     }
 
     private BotConfig() {

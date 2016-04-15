@@ -42,17 +42,16 @@ public class Main {
         }
 
         if(!BotConfig.load()) {
-            BotConfig.set("ownerId", "");
-            BotConfig.set("logname", "KanzeBot");
-            BotConfig.set("carbonKey", "");
-            System.out.println("Bot config created. Please populate it before restarting the Bot");
+            System.out.println("Bot config created/updated. Please populate/check it before restarting the Bot");
             System.exit(Statics.NORMAL_EXIT_CODE);
         }
 
-        try {
-            SimpleLog.addFileLogs(new File("logs/main.txt"), new File("logs/err.txt"));
-        } catch(IOException e) {
-            e.printStackTrace();
+        if(BotConfig.get("logToFiles", true)) {
+            try {
+                SimpleLog.addFileLogs(new File("logs/main.txt"), new File("logs/err.txt"));
+            } catch(IOException e) {
+                e.printStackTrace();
+            }
         }
 
         Statics.START_TIME = Long.parseLong(args[2]);
