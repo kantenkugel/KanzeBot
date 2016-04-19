@@ -44,8 +44,8 @@ public class InviteListener implements EventListener {
                     channel.sendMessageAsync("I am currently not configured to accept invites!", null);
                 } else {
                     channel.sendMessageAsync("I can no longer be invited via invite-links! " +
-                            "Please use following link to invite me to your server (manage_server permission required): " +
-                            "https://discordapp.com/oauth2/authorize?&client_id=" + Statics.OAUTH_ID + "&scope=bot", null);
+                            "Please use following link to invite me to your server (manage_server permission required):\n" +
+                            "https://discordapp.com/oauth2/authorize?client_id=" + Statics.OAUTH_ID + "&scope=bot", null);
                 }
             }
         }
