@@ -1,10 +1,29 @@
+/*
+ * Copyright 2016 Michael Ritter (Kantenkugel)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.kantenkugel.discordbot;
 
+import com.kantenkugel.discordbot.config.BotConfig;
 import com.kantenkugel.discordbot.listener.MessageEvent;
 import net.dv8tion.jda.entities.Guild;
 import net.dv8tion.jda.entities.User;
 import net.dv8tion.jda.utils.SimpleLog;
+import org.json.JSONObject;
 
+import javax.security.auth.login.LoginException;
 import java.sql.*;
 import java.sql.Date;
 import java.time.OffsetDateTime;
@@ -19,22 +38,37 @@ public class DbEngine {
     private static PreparedStatement userUpdate;
     private static PreparedStatement banAdd, banLookup;
 
-    public static synchronized void init() {
+    public static synchronized boolean init() {
         if(initialized)
-            return;
+            return true;
         try {
             open();
             if(createTables())
                 createStatements();
             initialized = true;
         } catch(SQLException | ClassNotFoundException e) {
-            e.printStackTrace();
+            LOG.log(e);
+        } catch(LoginException e) {
+            LOG.info("Did not establish DB-Connection due to missing config-entries");
         }
+        return initialized;
     }
 
-    private static void open() throws ClassNotFoundException, SQLException {
-        Class.forName("org.hsqldb.jdbcDriver");
-        conn = DriverManager.getConnection("jdbc:hsqldb:file:db/kanzedb", "SA", "");
+    private static void open() throws ClassNotFoundException, SQLException, LoginException {
+        JSONObject config = BotConfig.get("db");
+        if(config == null)
+            throw new LoginException("Config is missing db-section!");
+        String host = config.has("host") ? config.getString("host") : null;
+        String database = config.has("database") ? config.getString("database") : null;
+        String user = config.has("user") ? config.getString("user") : null;
+        String password = config.has("password") ? config.getString("password") : null;
+        if(host == null || host.trim().isEmpty() || database == null || database.trim().isEmpty()
+                || user == null || user.trim().isEmpty() || password == null || password.trim().isEmpty()) {
+            throw new LoginException("one of the db-configs values was empty or non-present");
+        }
+        Class.forName("com.mysql.jdbc.Driver");
+        conn = DriverManager.getConnection("jdbc:mysql://"+host+'/'+database, user, password);
+        LOG.info("Successfully opened Database-connection");
     }
 
     public static void handleMessage(MessageEvent e) {
@@ -61,7 +95,7 @@ public class DbEngine {
                 messageInsert.setDate(7, new Date(e.getMessage().getTime().toEpochSecond() * 1000));
                 messageInsert.executeUpdate();
             } catch(SQLException ex) {
-                ex.printStackTrace();
+                LOG.log(ex);
             }
         }
     }
@@ -73,7 +107,7 @@ public class DbEngine {
             messageDelete.setLong(1, Long.parseLong(id));
             messageDelete.executeUpdate();
         } catch(SQLException e) {
-            e.printStackTrace();
+            LOG.log(e);
         }
     }
 
@@ -90,7 +124,7 @@ public class DbEngine {
             }
             resultSet.close();
         } catch(SQLException e) {
-            e.printStackTrace();
+            LOG.log(e);
         }
         return bans;
     }
@@ -112,7 +146,7 @@ public class DbEngine {
             banAdd.setDate(7, new Date(OffsetDateTime.now().toEpochSecond() * 1000));
             banAdd.executeUpdate();
         } catch(SQLException e) {
-            e.printStackTrace();
+            LOG.log(e);
         }
     }
 
@@ -126,11 +160,11 @@ public class DbEngine {
                 if(!rs.getString("username").equals(user.getUsername())) {
                     rs.updateString("username", user.getUsername());
                     String aliases = rs.getString("aliases");
-                    boolean exists = Arrays.stream(aliases.split(" ")).anyMatch(a -> a.equals(user.getUsername()));
+                    boolean exists = Arrays.stream(aliases.split("\n")).anyMatch(a -> a.equals(user.getUsername()));
                     if(!exists) {
-                        aliases = aliases + " " + user.getUsername();
+                        aliases = aliases + '\n' + user.getUsername();
                         if(aliases.length() > 1000)
-                            aliases = aliases.substring(aliases.indexOf(" ", aliases.length() - 1000) + 1);
+                            aliases = aliases.substring(aliases.indexOf('\n', aliases.length() - 1000) + 1);
                         rs.updateString("aliases", aliases);
                     }
                     rs.updateRow();
@@ -144,7 +178,7 @@ public class DbEngine {
             }
             rs.close();
         } catch(SQLException e) {
-            e.printStackTrace();
+            LOG.log(e);
         }
     }
 
@@ -194,7 +228,7 @@ public class DbEngine {
             out.setLength(out.length() - 1);
             return out.toString();
         } catch(SQLException e) {
-            e.printStackTrace();
+            LOG.log(e);
         } finally {
             try {
                 rs.close();
@@ -216,74 +250,57 @@ public class DbEngine {
             banLookup = conn.prepareStatement("SELECT * FROM bans WHERE guildId=?;");
 
             userUpdate = conn.prepareStatement("SELECT * FROM users WHERE id=?;", ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
+            LOG.info("Created statements");
         } catch(SQLException e) {
-            e.printStackTrace();
+            LOG.log(e);
         }
     }
 
     private static boolean createTables() {
         try {
             conn.setAutoCommit(false);
-            Set<String> tables = new HashSet<>();
-            ResultSet tableRows = conn.getMetaData().getTables(null, null, null, new String[]{"TABLE"});
-            while(tableRows.next()) {
-                tables.add(tableRows.getString("TABLE_NAME").toLowerCase());
-            }
-            tableRows.close();
             Statement statement = conn.createStatement();
-            if(!tables.contains("messages")) {
-                LOG.info("Creating table messages");
-                statement.executeUpdate("CREATE CACHED TABLE messages(" +
-                        "  id VARCHAR(30) NOT NULL PRIMARY KEY," +
-                        "  guildId VARCHAR(30) NOT NULL," +
-                        "  channelId VARCHAR(30) NOT NULL," +
-                        "  authorId VARCHAR(30) NOT NULL," +
+            statement.executeUpdate("CREATE TABLE IF NOT EXISTS users(" +
+                    "  id VARCHAR(20) NOT NULL PRIMARY KEY," +
+                    "  username VARCHAR(32) NOT NULL," +
+                    "  aliases VARCHAR(1000) NOT NULL" +
+                    ");");
+            statement.executeUpdate("CREATE TABLE IF NOT EXISTS messages(" +
+                        "  id VARCHAR(20) NOT NULL PRIMARY KEY," +
+                        "  guildId VARCHAR(20) NOT NULL," +
+                        "  channelId VARCHAR(20) NOT NULL," +
+                        "  authorId VARCHAR(20) NOT NULL REFERENCES users(id) ON DELETE NO ACTION," +
                         "  authorName VARCHAR(32) NOT NULL," +
                         "  content VARCHAR(2000) NOT NULL," +
                         "  created DATETIME NOT NULL," +
                         "  deleted BIT(1) DEFAULT 0 NOT NULL" +
                         ");");
-            }
-            if(!tables.contains("message_edits")) {
-                LOG.info("Creating table message_edits");
-                statement.executeUpdate("CREATE CACHED TABLE message_edits(" +
-                        "  id INT IDENTITY PRIMARY KEY," +
-                        "  messageId VARCHAR(30) NOT NULL," +
+            statement.executeUpdate("CREATE TABLE IF NOT EXISTS message_edits(" +
+                        "  id INT AUTO_INCREMENT PRIMARY KEY," +
+                        "  messageId VARCHAR(20) NOT NULL REFERENCES messages(id) ON DELETE CASCADE," +
                         "  content VARCHAR(2000) NOT NULL," +
-                        "  editTime DATETIME NOT NULL," +
-                        "  CONSTRAINT message_edits_msg_fk FOREIGN KEY (messageId) REFERENCES messages(id) ON DELETE CASCADE" +
+                        "  editTime DATETIME NOT NULL" +
                         ");");
-            }
-            if(!tables.contains("bans")) {
-                LOG.info("Creating table bans");
-                statement.executeUpdate("CREATE CACHED TABLE bans(" +
-                        "  id INT IDENTITY PRIMARY KEY," +
-                        "  guildId VARCHAR(30) NOT NULL," +
-                        "  bannedId VARCHAR(30) NOT NULL," +
+            statement.executeUpdate("CREATE TABLE IF NOT EXISTS bans(" +
+                        "  id INT AUTO_INCREMENT PRIMARY KEY," +
+                        "  guildId VARCHAR(20) NOT NULL," +
+                        "  bannedId VARCHAR(20) NOT NULL REFERENCES users(id) ON DELETE NO ACTION," +
                         "  bannedName VARCHAR(32) NOT NULL," +
-                        "  executorId VARCHAR(30) NOT NULL," +
+                        "  executorId VARCHAR(20) NOT NULL REFERENCES users(id) ON DELETE NO ACTION," +
                         "  executorName VARCHAR(32) NOT NULL," +
                         "  reason VARCHAR(250) NOT NULL," +
                         "  createTime DATETIME NOT NULL" +
                         ");");
-            }
-            if(!tables.contains("users")) {
-                LOG.info("Creating table users");
-                statement.executeUpdate("CREATE CACHED TABLE users(" +
-                        "  id VARCHAR(30) NOT NULL PRIMARY KEY," +
-                        "  username VARCHAR(32) NOT NULL," +
-                        "  aliases VARCHAR(1000) NOT NULL" +
-                        ");");
-            }
             statement.close();
             conn.commit();
+            LOG.info("Tables checked/created");
             return true;
         } catch(SQLException e) {
-            e.printStackTrace();
+            LOG.log(e);
             try {
                 conn.rollback();
             } catch(SQLException e1) {
-                e1.printStackTrace();
+                LOG.log(e1);
             }
             close();
         } finally {
@@ -308,20 +325,16 @@ public class DbEngine {
             banAdd.close();
             banLookup.close();
         } catch(SQLException e) {
-            e.printStackTrace();
-        }
-        try {
-            conn.createStatement().execute("SHUTDOWN COMPACT;");
-        } catch(SQLException e) {
-            e.printStackTrace();
+            LOG.log(e);
         }
         try {
             conn.close();
         } catch(SQLException e) {
-            e.printStackTrace();
+            LOG.log(e);
         }
         conn = null;
         initialized = false;
+        LOG.info("Database successfully closed");
     }
 
     public static class Ban {
@@ -343,6 +356,7 @@ public class DbEngine {
     public static void drop() {
         try {
             open();
+            LOG.info("Dropping all tables...");
             conn.setAutoCommit(false);
             Set<String> tables = new HashSet<>();
             ResultSet tableRows = conn.getMetaData().getTables(null, null, null, new String[]{"TABLE"});
@@ -356,19 +370,20 @@ public class DbEngine {
             }
             statement.close();
             conn.commit();
-        } catch(ClassNotFoundException | SQLException e) {
+            LOG.info("All tables dropped!");
+        } catch(ClassNotFoundException | SQLException | LoginException e) {
             try {
                 conn.rollback();
             } catch(SQLException e1) {
-                e1.printStackTrace();
+                LOG.log(e1);
             }
-            e.printStackTrace();
+            LOG.log(e);
         } finally {
             if(conn != null) {
                 try {
                     conn.setAutoCommit(true);
                 } catch(SQLException e) {
-                    e.printStackTrace();
+                    LOG.log(e);
                 }
             }
         }

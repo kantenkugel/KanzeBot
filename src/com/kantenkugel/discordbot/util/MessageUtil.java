@@ -94,7 +94,7 @@ public class MessageUtil {
     }
 
     public static String strip(String in) {
-        return in.replace("@everyone", "@\u180Eeveryone");
+        return in.replace("@everyone", "@\u180Eeveryone").replace("@here", "@\u180Ehere");
     }
 
 }

@@ -100,7 +100,13 @@ public class BotConfig {
                 .put("logname", "KanzeBot")
                 .put("carbonKey", "")
                 .put("oauthAppId", "")
-                .put("logToFiles", true);
+                .put("logToFiles", true)
+                .put("db", new JSONObject()
+                        .put("host", "")
+                        .put("database", "")
+                        .put("user", "")
+                        .put("password", "")
+                );
     }
 
     private BotConfig() {
