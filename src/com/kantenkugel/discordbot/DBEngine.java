@@ -261,36 +261,40 @@ public class DbEngine {
             conn.setAutoCommit(false);
             Statement statement = conn.createStatement();
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS users(" +
-                    "  id VARCHAR(20) NOT NULL PRIMARY KEY," +
-                    "  username VARCHAR(32) NOT NULL," +
-                    "  aliases VARCHAR(1000) NOT NULL" +
+                    " id VARCHAR(20) NOT NULL PRIMARY KEY," +
+                    " username VARCHAR(32) NOT NULL," +
+                    " aliases VARCHAR(1000) NOT NULL" +
                     ");");
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS messages(" +
-                        "  id VARCHAR(20) NOT NULL PRIMARY KEY," +
-                        "  guildId VARCHAR(20) NOT NULL," +
-                        "  channelId VARCHAR(20) NOT NULL," +
-                        "  authorId VARCHAR(20) NOT NULL REFERENCES users(id) ON DELETE NO ACTION," +
-                        "  authorName VARCHAR(32) NOT NULL," +
-                        "  content VARCHAR(2000) NOT NULL," +
-                        "  created DATETIME NOT NULL," +
-                        "  deleted BIT(1) DEFAULT 0 NOT NULL" +
-                        ");");
+                    " id VARCHAR(20) NOT NULL PRIMARY KEY," +
+                    " guildId VARCHAR(20) NOT NULL," +
+                    " channelId VARCHAR(20) NOT NULL," +
+                    " authorId VARCHAR(20) NOT NULL," +
+                    " authorName VARCHAR(32) NOT NULL," +
+                    " content VARCHAR(2000) NOT NULL," +
+                    " created DATETIME NOT NULL," +
+                    " deleted BIT(1) DEFAULT 0 NOT NULL," +
+                    " FOREIGN KEY (authorId) REFERENCES users(id) ON DELETE NO ACTION" +
+                    ");");
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS message_edits(" +
-                        "  id INT AUTO_INCREMENT PRIMARY KEY," +
-                        "  messageId VARCHAR(20) NOT NULL REFERENCES messages(id) ON DELETE CASCADE," +
-                        "  content VARCHAR(2000) NOT NULL," +
-                        "  editTime DATETIME NOT NULL" +
-                        ");");
+                    " id INT AUTO_INCREMENT PRIMARY KEY," +
+                    " messageId VARCHAR(20) NOT NULL," +
+                    " content VARCHAR(2000) NOT NULL," +
+                    " editTime DATETIME NOT NULL," +
+                    " FOREIGN KEY (messageId) REFERENCES messages(id) ON DELETE CASCADE" +
+                    ");");
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS bans(" +
-                        "  id INT AUTO_INCREMENT PRIMARY KEY," +
-                        "  guildId VARCHAR(20) NOT NULL," +
-                        "  bannedId VARCHAR(20) NOT NULL REFERENCES users(id) ON DELETE NO ACTION," +
-                        "  bannedName VARCHAR(32) NOT NULL," +
-                        "  executorId VARCHAR(20) NOT NULL REFERENCES users(id) ON DELETE NO ACTION," +
-                        "  executorName VARCHAR(32) NOT NULL," +
-                        "  reason VARCHAR(250) NOT NULL," +
-                        "  createTime DATETIME NOT NULL" +
-                        ");");
+                    " id INT AUTO_INCREMENT PRIMARY KEY," +
+                    " guildId VARCHAR(20) NOT NULL," +
+                    " bannedId VARCHAR(20) NOT NULL," +
+                    " bannedName VARCHAR(32) NOT NULL," +
+                    " executorId VARCHAR(20) NOT NULL," +
+                    " executorName VARCHAR(32) NOT NULL," +
+                    " reason VARCHAR(250) NOT NULL," +
+                    " createTime DATETIME NOT NULL," +
+                    " FOREIGN KEY (bannedId) REFERENCES users(id) ON DELETE NO ACTION," +
+                    " FOREIGN KEY (executorId) REFERENCES users(id) ON DELETE NO ACTION" +
+                    ");");
             statement.close();
             conn.commit();
             LOG.info("Tables checked/created");
@@ -388,5 +392,12 @@ public class DbEngine {
             }
         }
         close();
+    }
+
+    public static void main(String[] args) {
+        BotConfig.load();
+        if(init()) {
+            close();
+        }
     }
 }
