@@ -25,7 +25,6 @@ import org.json.JSONObject;
 
 import javax.security.auth.login.LoginException;
 import java.sql.*;
-import java.sql.Date;
 import java.time.OffsetDateTime;
 import java.util.*;
 
@@ -78,7 +77,7 @@ public class DbEngine {
             try {
                 messageUpdate.setString(1, e.getMessage().getId());
                 messageUpdate.setString(2, e.getMessage().getRawContent());
-                messageUpdate.setDate(3, new Date(e.getMessage().getEditedTimestamp().toEpochSecond() * 1000));
+                messageUpdate.setTimestamp(3, new Timestamp(e.getMessage().getEditedTimestamp().toEpochSecond() * 1000));
                 messageUpdate.executeUpdate();
             } catch(SQLException ignored) {
                 //message is older than db of that channel
@@ -92,7 +91,7 @@ public class DbEngine {
                 messageInsert.setString(4, e.getAuthor().getId());
                 messageInsert.setString(5, e.getAuthor().getUsername());
                 messageInsert.setString(6, e.getMessage().getRawContent());
-                messageInsert.setDate(7, new Date(e.getMessage().getTime().toEpochSecond() * 1000));
+                messageInsert.setTimestamp(7, new Timestamp(e.getMessage().getTime().toEpochSecond() * 1000));
                 messageInsert.executeUpdate();
             } catch(SQLException ex) {
                 LOG.log(ex);
@@ -143,7 +142,7 @@ public class DbEngine {
             banAdd.setString(4, executor.getId());
             banAdd.setString(5, executor.getUsername());
             banAdd.setString(6, reason);
-            banAdd.setDate(7, new Date(OffsetDateTime.now().toEpochSecond() * 1000));
+            banAdd.setTimestamp(7, new Timestamp(OffsetDateTime.now().toEpochSecond() * 1000));
             banAdd.executeUpdate();
         } catch(SQLException e) {
             LOG.log(e);

@@ -79,7 +79,7 @@ public class Main {
             Statics.CHANGES = null;
         }
 
-        //DbEngine.init();
+        DbEngine.init();
         Module.init();
         try {
             JDABuilder jdaBuilder;
