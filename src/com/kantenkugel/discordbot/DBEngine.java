@@ -19,6 +19,7 @@ package com.kantenkugel.discordbot;
 import com.kantenkugel.discordbot.config.BotConfig;
 import com.kantenkugel.discordbot.listener.MessageEvent;
 import net.dv8tion.jda.entities.Guild;
+import net.dv8tion.jda.entities.TextChannel;
 import net.dv8tion.jda.entities.User;
 import net.dv8tion.jda.utils.SimpleLog;
 import org.json.JSONObject;
@@ -36,14 +37,19 @@ public class DbEngine {
     private static PreparedStatement messageInsert, messageUpdate, messageDelete;
     private static PreparedStatement userUpdate;
     private static PreparedStatement banAdd, banLookup;
+    private static PreparedStatement historyCreate;
 
     public static synchronized boolean init() {
         if(initialized)
             return true;
         try {
             open();
-            if(createTables())
-                createStatements();
+            if(!createTables()) {
+                LOG.fatal("Could not create tables! Closing Db!");
+                close();
+                return false;
+            }
+            createStatements();
             initialized = true;
         } catch(SQLException | ClassNotFoundException e) {
             LOG.log(e);
@@ -75,12 +81,14 @@ public class DbEngine {
             return;
         if(e.isEdit()) {
             try {
-                messageUpdate.setString(1, e.getMessage().getId());
-                messageUpdate.setString(2, e.getMessage().getRawContent());
-                messageUpdate.setTimestamp(3, new Timestamp(e.getMessage().getEditedTimestamp().toEpochSecond() * 1000));
+                messageUpdate.setString(1, e.getMessage().getRawContent());
+                messageUpdate.setTimestamp(2, new Timestamp(e.getMessage().getEditedTimestamp().toEpochSecond() * 1000));
+                messageUpdate.setString(3, e.getMessage().getId());
                 messageUpdate.executeUpdate();
-            } catch(SQLException ignored) {
-                //message is older than db of that channel
+            } catch(SQLTimeoutException ex) {
+                onTimeout();
+            } catch(SQLException ex) {
+                LOG.log(ex);
             }
         } else {
             try {
@@ -93,6 +101,8 @@ public class DbEngine {
                 messageInsert.setString(6, e.getMessage().getRawContent());
                 messageInsert.setTimestamp(7, new Timestamp(e.getMessage().getTime().toEpochSecond() * 1000));
                 messageInsert.executeUpdate();
+            } catch(SQLTimeoutException ex) {
+                onTimeout();
             } catch(SQLException ex) {
                 LOG.log(ex);
             }
@@ -105,6 +115,8 @@ public class DbEngine {
         try {
             messageDelete.setLong(1, Long.parseLong(id));
             messageDelete.executeUpdate();
+        } catch(SQLTimeoutException ex) {
+            onTimeout();
         } catch(SQLException e) {
             LOG.log(e);
         }
@@ -122,6 +134,8 @@ public class DbEngine {
                         , resultSet.getString("executorId"), resultSet.getString("executorName"), resultSet.getInt("created")));
             }
             resultSet.close();
+        } catch(SQLTimeoutException ex) {
+            onTimeout();
         } catch(SQLException e) {
             LOG.log(e);
         }
@@ -144,6 +158,8 @@ public class DbEngine {
             banAdd.setString(6, reason);
             banAdd.setTimestamp(7, new Timestamp(OffsetDateTime.now().toEpochSecond() * 1000));
             banAdd.executeUpdate();
+        } catch(SQLTimeoutException ex) {
+            onTimeout();
         } catch(SQLException e) {
             LOG.log(e);
         }
@@ -176,9 +192,30 @@ public class DbEngine {
                 rs.insertRow();
             }
             rs.close();
+        } catch(SQLTimeoutException ex) {
+            onTimeout();
         } catch(SQLException e) {
             LOG.log(e);
         }
+    }
+
+    public static long createHistory(User user, TextChannel channel) {
+        if(!initialized)
+            return -1;
+        try {
+            historyCreate.setString(1, user.getId());
+            historyCreate.setString(2, channel.getId());
+            historyCreate.setString(3, channel.getName());
+            historyCreate.executeUpdate();
+            ResultSet generatedKeys = historyCreate.getGeneratedKeys();
+            if(generatedKeys.next())
+                return generatedKeys.getLong(1);
+        } catch(SQLTimeoutException e) {
+            onTimeout();
+        } catch(SQLException e) {
+            e.printStackTrace();
+        }
+        return -1;
     }
 
     public static ResultSet query(String query) throws SQLException {
@@ -186,6 +223,7 @@ public class DbEngine {
             return null;
         Statement statement = conn.createStatement();
         statement.closeOnCompletion();
+        statement.setQueryTimeout(10);
         return statement.executeQuery(query);
     }
 
@@ -238,17 +276,33 @@ public class DbEngine {
 
     private static void createStatements() {
         try {
+            //Messages
             messageInsert = conn.prepareStatement("INSERT INTO messages(id, guildId, channelId, authorId, authorName, content, created)" +
                     " VALUES (?, ?, ?, ?, ?, ?, ?);");
-            messageUpdate = conn.prepareStatement("INSERT INTO message_edits(messageId, content, editTime)" +
-                    " VALUES (?, ?, ?);");
+            messageInsert.setQueryTimeout(10);
+            messageUpdate = conn.prepareStatement("INSERT INTO message_edits (messageId, content, editTime) SELECT id, ?, ? FROM messages WHERE id = ?;");
+//            messageUpdate = conn.prepareStatement("INSERT INTO message_edits(messageId, content, editTime)" +
+//                    " VALUES (?, ?, ?);");
+            messageUpdate.setQueryTimeout(10);
             messageDelete = conn.prepareStatement("UPDATE messages SET deleted=1 WHERE id=?;");
+            messageDelete.setQueryTimeout(10);
 
+            //Bans
             banAdd = conn.prepareStatement("INSERT INTO bans(guildId, bannedId, bannedName, executorId, executorName, reason, createTime)" +
                     " VALUES (?, ?, ?, ?, ?, ?, ?);");
+            banAdd.setQueryTimeout(10);
             banLookup = conn.prepareStatement("SELECT * FROM bans WHERE guildId=?;");
+            banLookup.setQueryTimeout(10);
 
+            //User-Update
             userUpdate = conn.prepareStatement("SELECT * FROM users WHERE id=?;", ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
+            userUpdate.setQueryTimeout(10);
+
+            //History
+            historyCreate = conn.prepareStatement("INSERT INTO histories(userId, channelId, channelName) VALUES (?, ?, ?);",
+                    Statement.RETURN_GENERATED_KEYS);
+            historyCreate.setQueryTimeout(10);
+
             LOG.info("Created statements");
         } catch(SQLException e) {
             LOG.log(e);
@@ -259,6 +313,7 @@ public class DbEngine {
         try {
             conn.setAutoCommit(false);
             Statement statement = conn.createStatement();
+            statement.setQueryTimeout(10);
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS users(" +
                     " id VARCHAR(20) NOT NULL PRIMARY KEY," +
                     " username VARCHAR(32) NOT NULL," +
@@ -271,7 +326,7 @@ public class DbEngine {
                     " authorId VARCHAR(20) NOT NULL," +
                     " authorName VARCHAR(32) NOT NULL," +
                     " content VARCHAR(2000) NOT NULL," +
-                    " created DATETIME NOT NULL," +
+                    " created DATETIME(3) NOT NULL," +
                     " deleted BIT(1) DEFAULT 0 NOT NULL," +
                     " FOREIGN KEY (authorId) REFERENCES users(id) ON DELETE NO ACTION" +
                     ");");
@@ -279,7 +334,7 @@ public class DbEngine {
                     " id INT AUTO_INCREMENT PRIMARY KEY," +
                     " messageId VARCHAR(20) NOT NULL," +
                     " content VARCHAR(2000) NOT NULL," +
-                    " editTime DATETIME NOT NULL," +
+                    " edited DATETIME(3) NOT NULL," +
                     " FOREIGN KEY (messageId) REFERENCES messages(id) ON DELETE CASCADE" +
                     ");");
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS bans(" +
@@ -290,9 +345,17 @@ public class DbEngine {
                     " executorId VARCHAR(20) NOT NULL," +
                     " executorName VARCHAR(32) NOT NULL," +
                     " reason VARCHAR(250) NOT NULL," +
-                    " createTime DATETIME NOT NULL," +
+                    " created DATETIME NOT NULL," +
                     " FOREIGN KEY (bannedId) REFERENCES users(id) ON DELETE NO ACTION," +
                     " FOREIGN KEY (executorId) REFERENCES users(id) ON DELETE NO ACTION" +
+                    ");");
+            statement.executeUpdate("CREATE TABLE IF NOT EXISTS histories(" +
+                    " id INT AUTO_INCREMENT PRIMARY KEY," +
+                    " userId VARCHAR(20) NOT NULL," +
+                    " channelId VARCHAR(20) NOT NULL," +
+                    " channelName VARCHAR(32) NOT NULL," +
+                    " created DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL," +
+                    " FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE" +
                     ");");
             statement.close();
             conn.commit();
@@ -315,6 +378,11 @@ public class DbEngine {
             }
         }
         return false;
+    }
+
+    private static void onTimeout() {
+        LOG.fatal("SQL-Query timed out during execution! Closing DB...");
+        close();
     }
 
     public static void close() {
