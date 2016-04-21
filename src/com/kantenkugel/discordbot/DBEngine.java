@@ -436,9 +436,13 @@ public class DbEngine {
             }
             tableRows.close();
             Statement statement = conn.createStatement();
+            statement.setQueryTimeout(10);
+            statement.addBatch("SET FOREIGN_KEY_CHECKS = 0;");
             for(String table : tables) {
-                statement.executeUpdate("DROP TABLE " + table + ";");
+                statement.addBatch("DROP TABLE " + table + ";");
             }
+            statement.addBatch("SET FOREIGN_KEY_CHECKS  = 1;");
+            statement.executeBatch();
             statement.close();
             conn.commit();
             LOG.info("All tables dropped!");
