@@ -27,6 +27,7 @@ import org.json.JSONObject;
 import javax.security.auth.login.LoginException;
 import java.sql.*;
 import java.time.OffsetDateTime;
+import java.time.temporal.ChronoField;
 import java.util.*;
 
 public class DbEngine {
@@ -82,7 +83,8 @@ public class DbEngine {
         if(e.isEdit()) {
             try {
                 messageUpdate.setString(1, e.getMessage().getRawContent());
-                messageUpdate.setTimestamp(2, new Timestamp(e.getMessage().getEditedTimestamp().toEpochSecond() * 1000));
+                messageUpdate.setTimestamp(2, new Timestamp(e.getMessage().getEditedTimestamp().toEpochSecond() * 1000
+                        + e.getMessage().getEditedTimestamp().get(ChronoField.MILLI_OF_SECOND)));
                 messageUpdate.setString(3, e.getMessage().getId());
                 messageUpdate.executeUpdate();
             } catch(SQLTimeoutException ex) {
@@ -99,7 +101,8 @@ public class DbEngine {
                 messageInsert.setString(4, e.getAuthor().getId());
                 messageInsert.setString(5, e.getAuthor().getUsername());
                 messageInsert.setString(6, e.getMessage().getRawContent());
-                messageInsert.setTimestamp(7, new Timestamp(e.getMessage().getTime().toEpochSecond() * 1000));
+                messageInsert.setTimestamp(7, new Timestamp(e.getMessage().getTime().toEpochSecond() * 1000
+                        + e.getMessage().getTime().get(ChronoField.MILLI_OF_SECOND)));
                 messageInsert.executeUpdate();
             } catch(SQLTimeoutException ex) {
                 onTimeout();
@@ -206,6 +209,7 @@ public class DbEngine {
             historyCreate.setString(1, user.getId());
             historyCreate.setString(2, channel.getId());
             historyCreate.setString(3, channel.getName());
+            historyCreate.setString(4, channel.getGuild().getName());
             historyCreate.executeUpdate();
             ResultSet generatedKeys = historyCreate.getGeneratedKeys();
             if(generatedKeys.next())
@@ -280,15 +284,13 @@ public class DbEngine {
             messageInsert = conn.prepareStatement("INSERT INTO messages(id, guildId, channelId, authorId, authorName, content, created)" +
                     " VALUES (?, ?, ?, ?, ?, ?, ?);");
             messageInsert.setQueryTimeout(10);
-            messageUpdate = conn.prepareStatement("INSERT INTO message_edits (messageId, content, editTime) SELECT id, ?, ? FROM messages WHERE id = ?;");
-//            messageUpdate = conn.prepareStatement("INSERT INTO message_edits(messageId, content, editTime)" +
-//                    " VALUES (?, ?, ?);");
+            messageUpdate = conn.prepareStatement("INSERT INTO message_edits (messageId, content, edited) SELECT id, ?, ? FROM messages WHERE id = ?;");
             messageUpdate.setQueryTimeout(10);
             messageDelete = conn.prepareStatement("UPDATE messages SET deleted=1 WHERE id=?;");
             messageDelete.setQueryTimeout(10);
 
             //Bans
-            banAdd = conn.prepareStatement("INSERT INTO bans(guildId, bannedId, bannedName, executorId, executorName, reason, createTime)" +
+            banAdd = conn.prepareStatement("INSERT INTO bans(guildId, bannedId, bannedName, executorId, executorName, reason, created)" +
                     " VALUES (?, ?, ?, ?, ?, ?, ?);");
             banAdd.setQueryTimeout(10);
             banLookup = conn.prepareStatement("SELECT * FROM bans WHERE guildId=?;");
@@ -299,7 +301,7 @@ public class DbEngine {
             userUpdate.setQueryTimeout(10);
 
             //History
-            historyCreate = conn.prepareStatement("INSERT INTO histories(userId, channelId, channelName) VALUES (?, ?, ?);",
+            historyCreate = conn.prepareStatement("INSERT INTO histories(userId, channelId, channelName, guildName) VALUES (?, ?, ?, ?);",
                     Statement.RETURN_GENERATED_KEYS);
             historyCreate.setQueryTimeout(10);
 
@@ -318,7 +320,7 @@ public class DbEngine {
                     " id VARCHAR(20) NOT NULL PRIMARY KEY," +
                     " username VARCHAR(32) NOT NULL," +
                     " aliases VARCHAR(1000) NOT NULL" +
-                    ");");
+                    ") COLLATE utf8mb4_unicode_ci;");
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS messages(" +
                     " id VARCHAR(20) NOT NULL PRIMARY KEY," +
                     " guildId VARCHAR(20) NOT NULL," +
@@ -329,14 +331,14 @@ public class DbEngine {
                     " created DATETIME(3) NOT NULL," +
                     " deleted BIT(1) DEFAULT 0 NOT NULL," +
                     " FOREIGN KEY (authorId) REFERENCES users(id) ON DELETE NO ACTION" +
-                    ");");
+                    ") COLLATE utf8mb4_unicode_ci;");
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS message_edits(" +
                     " id INT AUTO_INCREMENT PRIMARY KEY," +
                     " messageId VARCHAR(20) NOT NULL," +
                     " content VARCHAR(2000) NOT NULL," +
                     " edited DATETIME(3) NOT NULL," +
                     " FOREIGN KEY (messageId) REFERENCES messages(id) ON DELETE CASCADE" +
-                    ");");
+                    ") COLLATE utf8mb4_unicode_ci;");
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS bans(" +
                     " id INT AUTO_INCREMENT PRIMARY KEY," +
                     " guildId VARCHAR(20) NOT NULL," +
@@ -348,15 +350,16 @@ public class DbEngine {
                     " created DATETIME NOT NULL," +
                     " FOREIGN KEY (bannedId) REFERENCES users(id) ON DELETE NO ACTION," +
                     " FOREIGN KEY (executorId) REFERENCES users(id) ON DELETE NO ACTION" +
-                    ");");
+                    ") COLLATE utf8mb4_unicode_ci;");
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS histories(" +
                     " id INT AUTO_INCREMENT PRIMARY KEY," +
                     " userId VARCHAR(20) NOT NULL," +
                     " channelId VARCHAR(20) NOT NULL," +
                     " channelName VARCHAR(32) NOT NULL," +
+                    " guildName VARCHAR(32) NOT NULL," +
                     " created DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL," +
                     " FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE" +
-                    ");");
+                    ") COLLATE utf8mb4_unicode_ci;");
             statement.close();
             conn.commit();
             LOG.info("Tables checked/created");
@@ -457,12 +460,13 @@ public class DbEngine {
             if(conn != null) {
                 try {
                     conn.setAutoCommit(true);
+                    conn.close();
                 } catch(SQLException e) {
                     LOG.log(e);
                 }
+                conn = null;
             }
         }
-        close();
     }
 
     public static void main(String[] args) {

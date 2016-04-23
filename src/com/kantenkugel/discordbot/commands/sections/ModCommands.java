@@ -16,6 +16,7 @@
 
 package com.kantenkugel.discordbot.commands.sections;
 
+import com.kantenkugel.discordbot.DbEngine;
 import com.kantenkugel.discordbot.commands.Command;
 import com.kantenkugel.discordbot.commands.CommandWrapper;
 import com.kantenkugel.discordbot.util.MessageUtil;
@@ -259,6 +260,14 @@ public class ModCommands implements CommandSection {
                 reply(m, cfg, "There is already a clear-task running for this Channel!");
             }
         }).acceptPrivate(false).acceptPriv(Command.Priv.ADMIN));
+
+        registry.put("history", new CommandWrapper("Generates a link to a history-view of this Channel", (e, cfg) -> {
+            long historyId = DbEngine.createHistory(e.getAuthor(), e.getTextChannel());
+            if(historyId == -1)
+                reply(e, cfg, "There was an error creating the history... Is the db disabled?");
+            else
+                reply(e, cfg, "History-view generated. Visit http://local.kantenkugel.com:3000/history/" + historyId + " to view it!");
+        }).acceptPrivate(false).acceptPriv(Command.Priv.MOD));
     }
 
     private static class ClearRunner implements Runnable {
