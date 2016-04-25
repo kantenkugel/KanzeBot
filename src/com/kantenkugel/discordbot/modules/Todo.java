@@ -16,6 +16,7 @@
 
 package com.kantenkugel.discordbot.modules;
 
+import com.kantenkugel.discordbot.Statics;
 import com.kantenkugel.discordbot.commands.Command;
 import com.kantenkugel.discordbot.commands.CommandWrapper;
 import com.kantenkugel.discordbot.config.ServerConfig;
@@ -228,9 +229,14 @@ public class Todo extends Module {
         if(channel == null) {
             return;
         }
+        TextChannel tc = api.getTextChannelById(channel);
+        if(tc == null) {
+            Statics.LOG.warn(cfg.getGuild().getName()+'('+cfg.getGuild().getId()+") Messed up Kanzebot!!!");
+            return;
+        }
         Map<String, List<String>> messages = new HashMap<>();
         List<String> toFind = new ArrayList<>(todoMessage);
-        MessageHistory history = new MessageHistory(api.getTextChannelById(channel));
+        MessageHistory history = new MessageHistory(tc);
         while(!toFind.isEmpty()) {
             List<Message> retrieve = history.retrieve();
             if(retrieve == null) {

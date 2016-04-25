@@ -44,20 +44,19 @@ public class Main {
 
     /*
     Args:
-        0  email or bot-token,
-        1  password or "-" for bots,
-        2  system-time of wrapper-start (for uptime),
+        0  bot-token
+        1  system-time of wrapper-start (for uptime),
            OR:
            "true" -> 2nd bot for only db (rest of params ignored)
-        3  success-indicator (true/false/"-")
-        4  version-number
-        5+ MULTIPLE/NONE strings describing the changelog of this version
+        2  success-indicator (true/false/"-")
+        3  version-number
+        4+ MULTIPLE/NONE strings describing the changelog of this version
     */
     public static void main(String[] args) {
         boolean isDbBot = false;
-        if(args.length == 3 && Boolean.parseBoolean(args[2])) {
+        if(args.length == 2 && Boolean.parseBoolean(args[1])) {
             isDbBot = true;
-        } else if(args.length < 5) {
+        } else if(args.length < 4) {
             System.out.println("Missing arguments!");
             return;
         }
@@ -76,12 +75,12 @@ public class Main {
         }
 
         if(!isDbBot) {
-            Statics.START_TIME = Long.parseLong(args[2]);
-            Statics.VERSION = Integer.parseInt(args[4]);
+            Statics.START_TIME = Long.parseLong(args[1]);
+            Statics.VERSION = Integer.parseInt(args[3]);
         }
 
-        if(!isDbBot && args.length > 5) {
-            Statics.CHANGES = StringUtils.join(args, '\n', 5, args.length);
+        if(!isDbBot && args.length > 4) {
+            Statics.CHANGES = StringUtils.join(args, '\n', 4, args.length);
         } else {
             Statics.CHANGES = null;
         }
@@ -91,19 +90,13 @@ public class Main {
         else
             Module.init();
         try {
-            JDABuilder jdaBuilder;
-            if(args[1].equals("-")) {
-                jdaBuilder = new JDABuilder().setBotToken(args[0]);
-            } else {
-                throw new RuntimeException("Normal accs are no longer supported!");
-            }
-            jdaBuilder.setAudioEnabled(false);
+            JDABuilder jdaBuilder = new JDABuilder().setBotToken(args[0]).setAudioEnabled(false);
             if(isDbBot)
                 jdaBuilder.addListener(new DbListener());
             else
-                jdaBuilder.addListener(new InviteListener()).addListener(new MessageListener()).addListener(new StatusListener());
-            if(!isDbBot && !args[3].equals("-")) {
-                boolean success = Boolean.parseBoolean(args[3]);
+                jdaBuilder.addListener(new StatusListener()).addListener(new InviteListener()).addListener(new MessageListener());
+            if(!isDbBot && !args[2].equals("-")) {
+                boolean success = Boolean.parseBoolean(args[2]);
                 if(success) {
                     checker = UpdateValidator.getInstance();
                     checker.start();

@@ -72,6 +72,10 @@ public class ServerConfig {
         return allowEveryone;
     }
 
+    public Guild getGuild() {
+        return guild;
+    }
+
     public void setPrefix(String prefix) {
         this.prefix = prefix;
         save();

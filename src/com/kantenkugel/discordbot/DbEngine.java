@@ -30,6 +30,13 @@ import java.time.OffsetDateTime;
 import java.time.temporal.ChronoField;
 import java.util.*;
 
+/*
+ NOTE: the MySQL server has to be configured via config-file (my.ini / my.conf) to properly communicate utf8_mb4:
+ in the [mysqld] section, uncomment and change following keys:
+     collation_server=utf8mb4_unicode_ci  -  or whatever encoding you use for tables (in this class i use unicode_ci)
+     character_set_server=utf8mb4
+ #skip-character-set-client-handshake HAS to stay commented out! (we want server+client to agree on encoding during handshake)
+ */
 public class DbEngine {
     private static final SimpleLog LOG = SimpleLog.getLog("DB");
 

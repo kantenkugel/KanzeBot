@@ -18,6 +18,7 @@ package com.kantenkugel.discordbot.commands.sections;
 
 import com.kantenkugel.discordbot.Statics;
 import com.kantenkugel.discordbot.commands.Command;
+import com.kantenkugel.discordbot.commands.CommandRegistry;
 import com.kantenkugel.discordbot.commands.CommandWrapper;
 import com.kantenkugel.discordbot.commands.CustomCommand;
 import com.kantenkugel.discordbot.config.BlackList;
@@ -50,6 +51,7 @@ public class BotAdminCommands implements CommandSection {
     public void register(Map<String, Command> registry, JDA api) {
         //eval
         engine.put("api", api);
+        engine.put("configs", CommandRegistry.serverConfigs);
         engine.put("commands", registry);
         engine.put("rng", new Random());
         engine.put("finder", new FinderUtil());

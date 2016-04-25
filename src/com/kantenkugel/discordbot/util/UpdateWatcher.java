@@ -39,7 +39,13 @@ public class UpdateWatcher extends Thread {
         while(true) {
             try {
                 String cmd = reader.readLine();
-                int code = Integer.parseInt(cmd);
+                int code;
+                try {
+                    code = Integer.parseInt(cmd);
+                } catch(NumberFormatException e) {
+                    Statics.LOG.warn("Got unknown input via System.in: " + cmd);
+                    continue;
+                }
                 cmd = null;
                 switch(code) {
                     case Statics.UPDATE_EXIT_CODE:
@@ -54,9 +60,9 @@ public class UpdateWatcher extends Thread {
                         MiscUtil.shutdown(code);
                         return;
                     default:
-                        System.out.println("UpdateWatcher got unknown command-code " + code + "... ignoring");
+                        Statics.LOG.warn("UpdateWatcher got unknown command-code " + code + "... ignoring");
                 }
-            } catch(IOException | NumberFormatException e) {
+            } catch(IOException e) {
                 e.printStackTrace();
             }
         }
