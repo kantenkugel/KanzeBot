@@ -35,8 +35,9 @@ public class DbEngine {
 
     private static boolean initialized = false;
     private static Connection conn;
+    private static PreparedStatement guildUpdate, guildUpdate2, channelUpdate;
     private static PreparedStatement messageInsert, messageUpdate, messageDelete;
-    private static PreparedStatement userUpdate;
+    private static PreparedStatement userUpdate, userAliasUpdate;
     private static PreparedStatement banAdd, banLookup;
     private static PreparedStatement historyCreate;
 
@@ -52,15 +53,13 @@ public class DbEngine {
             }
             createStatements();
             initialized = true;
-        } catch(SQLException | ClassNotFoundException e) {
-            LOG.log(e);
         } catch(LoginException e) {
             LOG.info("Did not establish DB-Connection due to missing config-entries");
         }
         return initialized;
     }
 
-    private static void open() throws ClassNotFoundException, SQLException, LoginException {
+    private static void open() throws LoginException {
         JSONObject config = BotConfig.get("db");
         if(config == null)
             throw new LoginException("Config is missing db-section!");
@@ -72,8 +71,12 @@ public class DbEngine {
                 || user == null || user.trim().isEmpty() || password == null || password.trim().isEmpty()) {
             throw new LoginException("one of the db-configs values was empty or non-present");
         }
-        Class.forName("com.mysql.jdbc.Driver");
-        conn = DriverManager.getConnection("jdbc:mysql://"+host+'/'+database, user, password);
+        try {
+            Class.forName("com.mysql.jdbc.Driver");
+            conn = DriverManager.getConnection("jdbc:mysql://" + host + '/' + database + "?useUnicode=true", user, password);
+        } catch(Exception ex) {
+            throw new LoginException("Failed to connect or login to DB");
+        }
         LOG.info("Successfully opened Database-connection");
     }
 
@@ -96,12 +99,10 @@ public class DbEngine {
             try {
                 updateUser(e.getAuthor());
                 messageInsert.setString(1, e.getMessage().getId());
-                messageInsert.setString(2, e.getGuild().getId());
-                messageInsert.setString(3, e.getTextChannel().getId());
-                messageInsert.setString(4, e.getAuthor().getId());
-                messageInsert.setString(5, e.getAuthor().getUsername());
-                messageInsert.setString(6, e.getMessage().getRawContent());
-                messageInsert.setTimestamp(7, new Timestamp(e.getMessage().getTime().toEpochSecond() * 1000
+                messageInsert.setString(2, e.getTextChannel().getId());
+                messageInsert.setString(3, e.getAuthor().getId());
+                messageInsert.setString(4, e.getMessage().getRawContent());
+                messageInsert.setTimestamp(5, new Timestamp(e.getMessage().getTime().toEpochSecond() * 1000
                         + e.getMessage().getTime().get(ChronoField.MILLI_OF_SECOND)));
                 messageInsert.executeUpdate();
             } catch(SQLTimeoutException ex) {
@@ -119,6 +120,162 @@ public class DbEngine {
             messageDelete.setLong(1, Long.parseLong(id));
             messageDelete.executeUpdate();
         } catch(SQLTimeoutException ex) {
+            onTimeout();
+        } catch(SQLException e) {
+            LOG.log(e);
+        }
+    }
+
+    public static void handleGuilds(List<Guild> guilds) {
+        if(!initialized)
+            return;
+        LOG.info("Starting DB-CHECK of Guilds...");
+        try {
+            //get existing guilds...
+            ResultSet query = query("SELECT id FROM guilds WHERE last_seen != NULL;");
+            Set<String> existing = new HashSet<>();
+            while(query.next()) {
+                existing.add(query.getString(1));
+            }
+            query.close();
+
+            //add/update guilds
+            for(Guild guild : guilds) {
+                LOG.trace("Validating guild "+guild.getId());
+                existing.remove(guild.getId());
+                updateGuild(guild);
+            }
+
+            LOG.debug("Marking unseen dbs");
+            //mark as unseen
+            for(String unfound : existing) {
+                update("UPDATE guilds SET last_seen = CURRENT_DATE WHERE id = ?;", unfound);
+            }
+        } catch(SQLTimeoutException e) {
+            onTimeout();
+        } catch(SQLException e) {
+            LOG.log(e);
+        }
+        LOG.info("Finished DB-CHECK of Guilds!");
+    }
+
+    public static void updateGuild(Guild g) {
+        if(!initialized)
+            return;
+        try {
+            guildUpdate.setString(1, g.getId());
+            ResultSet rs = guildUpdate.executeQuery();
+            if(rs.next()) {
+                boolean updated = false;
+                if(!rs.getString("name").equals(g.getName())) {
+                    rs.updateString("name", g.getName());
+                    updated = true;
+                }
+                if(rs.getDate("last_seen") != null) {
+                    rs.updateNull("last_seen");
+                    updated = true;
+                }
+                if(updated)
+                    rs.updateRow();
+                handleChannels(g);
+            } else {
+                rs.moveToInsertRow();
+                rs.updateString("id", g.getId());
+                rs.updateString("name", g.getName());
+                rs.insertRow();
+                for(TextChannel channel : g.getTextChannels()) {
+                    update("INSERT INTO channels(id, name, guildId) VALUES (?, ?, ?);", channel.getId(), channel.getName(), g.getId());
+                }
+            }
+        } catch(SQLTimeoutException e) {
+            onTimeout();
+        } catch(SQLException e) {
+            LOG.log(e);
+        }
+
+    }
+
+    public static void deleteGuild(Guild g) {
+        if(!initialized)
+            return;
+        try {
+            update("UPDATE guilds SET last_seen = CURRENT_DATE WHERE id = ?;", g.getId());
+        } catch(SQLTimeoutException e) {
+            onTimeout();
+        } catch(SQLException e) {
+            LOG.log(e);
+        }
+    }
+
+    public static void updateChannel(TextChannel channel) {
+        if(!initialized)
+            return;
+        try {
+            channelUpdate.setString(1, channel.getId());
+            ResultSet rs = channelUpdate.executeQuery();
+            if(rs.next()) {
+                if(!rs.getString("name").equals(channel.getName())) {
+                    rs.updateString("name", channel.getName());
+                    rs.updateBoolean("deleted", rs.getBoolean("deleted"));
+                    rs.updateRow();
+                }
+            } else {
+                rs.moveToInsertRow();
+                rs.updateString("id", channel.getId());
+                rs.updateString("name", channel.getName());
+                rs.updateString("guildId", channel.getGuild().getId());
+                rs.insertRow();
+            }
+            rs.close();
+        } catch(SQLTimeoutException e) {
+            onTimeout();
+        } catch(SQLException e) {
+            LOG.log(e);
+        }
+    }
+
+    private static void handleChannels(Guild g) {
+        Map<String, TextChannel> channels = new HashMap<>();
+        g.getTextChannels().forEach(c -> channels.put(c.getId(), c));
+        try {
+            guildUpdate2.setString(1, g.getId());
+            ResultSet rs = guildUpdate2.executeQuery();
+            while(rs.next()) {
+                String channelId = rs.getString("id");
+                if(channels.containsKey(channelId)) {
+                    TextChannel tc = channels.get(channelId);
+                    if(!rs.getString("name").equals(tc.getName())) {
+                        rs.updateString("name", tc.getName());
+                        rs.updateBoolean("deleted", rs.getBoolean("deleted"));
+                        rs.updateRow();
+                    }
+                    channels.remove(channelId);
+                } else {
+                    rs.updateBoolean("deleted", true);
+                    rs.updateRow();
+                }
+            }
+            for(TextChannel newChannel : channels.values()) {
+                rs.moveToInsertRow();
+                rs.updateString("id", newChannel.getId());
+                rs.updateString("name", newChannel.getName());
+                rs.updateString("guildId", g.getId());
+                rs.insertRow();
+            }
+            rs.close();
+        } catch(SQLTimeoutException e) {
+            onTimeout();
+        } catch(SQLException e) {
+            LOG.log(e);
+        }
+    }
+
+    public static void deleteChannel(TextChannel channel) {
+        if(!initialized)
+            return;
+        try {
+            update("UPDATE channels SET deleted = 1 WHERE id = ?;", channel.getId());
+        } catch(SQLTimeoutException e) {
             onTimeout();
         } catch(SQLException e) {
             LOG.log(e);
@@ -155,11 +312,9 @@ public class DbEngine {
             updateUser(banned);
             banAdd.setString(1, guild.getId());
             banAdd.setString(2, banned.getId());
-            banAdd.setString(3, banned.getUsername());
-            banAdd.setString(4, executor.getId());
-            banAdd.setString(5, executor.getUsername());
-            banAdd.setString(6, reason);
-            banAdd.setTimestamp(7, new Timestamp(OffsetDateTime.now().toEpochSecond() * 1000));
+            banAdd.setString(3, executor.getId());
+            banAdd.setString(4, reason);
+            banAdd.setTimestamp(5, new Timestamp(OffsetDateTime.now().toEpochSecond() * 1000));
             banAdd.executeUpdate();
         } catch(SQLTimeoutException ex) {
             onTimeout();
@@ -177,22 +332,24 @@ public class DbEngine {
             if(rs.next()) {
                 if(!rs.getString("username").equals(user.getUsername())) {
                     rs.updateString("username", user.getUsername());
-                    String aliases = rs.getString("aliases");
-                    boolean exists = Arrays.stream(aliases.split("\n")).anyMatch(a -> a.equals(user.getUsername()));
-                    if(!exists) {
-                        aliases = aliases + '\n' + user.getUsername();
-                        if(aliases.length() > 1000)
-                            aliases = aliases.substring(aliases.indexOf('\n', aliases.length() - 1000) + 1);
-                        rs.updateString("aliases", aliases);
-                    }
                     rs.updateRow();
+                    userAliasUpdate.setString(1, user.getId());
+                    userAliasUpdate.setString(2, user.getUsername());
+                    ResultSet resultSet = userAliasUpdate.executeQuery();
+                    if(!resultSet.next()) {
+                        resultSet.moveToInsertRow();
+                        resultSet.updateString("userId", user.getId());
+                        resultSet.updateString("alias", user.getUsername());
+                        resultSet.insertRow();
+                    }
+                    resultSet.close();
                 }
             } else {
                 rs.moveToInsertRow();
                 rs.updateString("id", user.getId());
                 rs.updateString("username", user.getUsername());
-                rs.updateString("aliases", user.getUsername());
                 rs.insertRow();
+                update("INSERT INTO user_aliases(userId, alias) VALUES (?, ?);", user.getId(), user.getUsername());
             }
             rs.close();
         } catch(SQLTimeoutException ex) {
@@ -208,8 +365,6 @@ public class DbEngine {
         try {
             historyCreate.setString(1, user.getId());
             historyCreate.setString(2, channel.getId());
-            historyCreate.setString(3, channel.getName());
-            historyCreate.setString(4, channel.getGuild().getName());
             historyCreate.executeUpdate();
             ResultSet generatedKeys = historyCreate.getGeneratedKeys();
             if(generatedKeys.next())
@@ -220,6 +375,37 @@ public class DbEngine {
             e.printStackTrace();
         }
         return -1;
+    }
+
+    private static void update(String update, Object... objects) throws SQLException {
+        PreparedStatement statement = conn.prepareStatement(update);
+        statement.setQueryTimeout(10);
+        int index = 1;
+        for(Object object : objects) {
+            if(object == null)
+                statement.setNull(index++, Types.VARCHAR);
+            else if(object.getClass() == String.class)
+                statement.setString(index++, ((String) object));
+            else if(object.getClass() == int.class)
+                statement.setInt(index++, (int) object);
+            else if(object.getClass() == Integer.class)
+                statement.setInt(index++, (Integer) object);
+            else if(object.getClass() == long.class)
+                statement.setLong(index++, (long) object);
+            else if(object.getClass() == Long.class)
+                statement.setLong(index++, (Long) object);
+            else if(object.getClass() == boolean.class)
+                statement.setBoolean(index++, (boolean) object);
+            else if(object.getClass() == Boolean.class)
+                statement.setBoolean(index++, (Boolean) object);
+            else {
+                LOG.warn("Unknown parameter type for update()... Got " + object.getClass().getName() + "... Skipping update!");
+                statement.close();
+                return;
+            }
+        }
+        statement.executeUpdate();
+        statement.close();
     }
 
     public static ResultSet query(String query) throws SQLException {
@@ -280,9 +466,17 @@ public class DbEngine {
 
     private static void createStatements() {
         try {
+            //Guild+Channel
+            guildUpdate = conn.prepareStatement("SELECT * FROM guilds WHERE id = ?;", ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
+            guildUpdate.setQueryTimeout(10);
+            guildUpdate2 = conn.prepareStatement("SELECT * FROM channels WHERE guildId = ?;", ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
+            guildUpdate2.setQueryTimeout(10);
+            channelUpdate = conn.prepareStatement("SELECT * FROM channels WHERE id = ?;", ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
+            channelUpdate.setQueryTimeout(10);
+
             //Messages
-            messageInsert = conn.prepareStatement("INSERT INTO messages(id, guildId, channelId, authorId, authorName, content, created)" +
-                    " VALUES (?, ?, ?, ?, ?, ?, ?);");
+            messageInsert = conn.prepareStatement("INSERT INTO messages(id, channelId, authorId, content, created)" +
+                    " VALUES (?, ?, ?, ?, ?);");
             messageInsert.setQueryTimeout(10);
             messageUpdate = conn.prepareStatement("INSERT INTO message_edits (messageId, content, edited) SELECT id, ?, ? FROM messages WHERE id = ?;");
             messageUpdate.setQueryTimeout(10);
@@ -290,18 +484,23 @@ public class DbEngine {
             messageDelete.setQueryTimeout(10);
 
             //Bans
-            banAdd = conn.prepareStatement("INSERT INTO bans(guildId, bannedId, bannedName, executorId, executorName, reason, created)" +
-                    " VALUES (?, ?, ?, ?, ?, ?, ?);");
+            banAdd = conn.prepareStatement("INSERT INTO bans(guildId, bannedId, executorId, reason, created)" +
+                    " VALUES (?, ?, ?, ?, ?);");
             banAdd.setQueryTimeout(10);
-            banLookup = conn.prepareStatement("SELECT * FROM bans WHERE guildId=?;");
+            banLookup = conn.prepareStatement("SELECT bans.*, u1.username AS bannedName, u2.username AS executorName " +
+                    "FROM bans JOIN users AS u1 ON bans.bannedId = u1.id JOIN users AS u2 ON bans.executorId = u2.id " +
+                    "WHERE guildId=?;");
             banLookup.setQueryTimeout(10);
 
             //User-Update
             userUpdate = conn.prepareStatement("SELECT * FROM users WHERE id=?;", ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
             userUpdate.setQueryTimeout(10);
+            userAliasUpdate = conn.prepareStatement("SELECT * FROM user_aliases WHERE userId=? AND alias=?;"
+                    , ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
+            userAliasUpdate.setQueryTimeout(10);
 
             //History
-            historyCreate = conn.prepareStatement("INSERT INTO histories(userId, channelId, channelName, guildName) VALUES (?, ?, ?, ?);",
+            historyCreate = conn.prepareStatement("INSERT INTO histories(userId, channelId) VALUES (?, ?);",
                     Statement.RETURN_GENERATED_KEYS);
             historyCreate.setQueryTimeout(10);
 
@@ -316,21 +515,37 @@ public class DbEngine {
             conn.setAutoCommit(false);
             Statement statement = conn.createStatement();
             statement.setQueryTimeout(10);
+            statement.executeUpdate("CREATE TABLE IF NOT EXISTS guilds(" +
+                    " id VARCHAR(20) NOT NULL PRIMARY KEY," +
+                    " name VARCHAR(100) NOT NULL," +
+                    " last_seen DATE DEFAULT NULL" +
+                    ") COLLATE utf8mb4_unicode_ci;");
+            statement.executeUpdate("CREATE TABLE IF NOT EXISTS channels(" +
+                    " id VARCHAR(20) NOT NULL PRIMARY KEY," +
+                    " name VARCHAR(100) NOT NULL," +
+                    " guildId VARCHAR(20) NOT NULL," +
+                    " deleted BIT(1) DEFAULT 0 NOT NULL," +
+                    " FOREIGN KEY (guildId) REFERENCES guilds(id) ON DELETE CASCADE" +
+                    ") COLLATE utf8mb4_unicode_ci;");
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS users(" +
                     " id VARCHAR(20) NOT NULL PRIMARY KEY," +
-                    " username VARCHAR(32) NOT NULL," +
-                    " aliases VARCHAR(1000) NOT NULL" +
+                    " username VARCHAR(32) NOT NULL" +
+                    ") COLLATE utf8mb4_unicode_ci;");
+            statement.executeUpdate("CREATE TABLE IF NOT EXISTS user_aliases(" +
+                    " id INT AUTO_INCREMENT PRIMARY KEY," +
+                    " userId VARCHAR(20) NOT NULL," +
+                    " alias VARCHAR(32) NOT NULL," +
+                    " FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE" +
                     ") COLLATE utf8mb4_unicode_ci;");
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS messages(" +
                     " id VARCHAR(20) NOT NULL PRIMARY KEY," +
-                    " guildId VARCHAR(20) NOT NULL," +
                     " channelId VARCHAR(20) NOT NULL," +
                     " authorId VARCHAR(20) NOT NULL," +
-                    " authorName VARCHAR(32) NOT NULL," +
                     " content VARCHAR(2000) NOT NULL," +
                     " created DATETIME(3) NOT NULL," +
                     " deleted BIT(1) DEFAULT 0 NOT NULL," +
-                    " FOREIGN KEY (authorId) REFERENCES users(id) ON DELETE NO ACTION" +
+                    " FOREIGN KEY (authorId) REFERENCES users(id) ON DELETE NO ACTION," +
+                    " FOREIGN KEY (channelId) REFERENCES channels(id) ON DELETE CASCADE" +
                     ") COLLATE utf8mb4_unicode_ci;");
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS message_edits(" +
                     " id INT AUTO_INCREMENT PRIMARY KEY," +
@@ -343,22 +558,20 @@ public class DbEngine {
                     " id INT AUTO_INCREMENT PRIMARY KEY," +
                     " guildId VARCHAR(20) NOT NULL," +
                     " bannedId VARCHAR(20) NOT NULL," +
-                    " bannedName VARCHAR(32) NOT NULL," +
                     " executorId VARCHAR(20) NOT NULL," +
-                    " executorName VARCHAR(32) NOT NULL," +
                     " reason VARCHAR(250) NOT NULL," +
                     " created DATETIME NOT NULL," +
                     " FOREIGN KEY (bannedId) REFERENCES users(id) ON DELETE NO ACTION," +
-                    " FOREIGN KEY (executorId) REFERENCES users(id) ON DELETE NO ACTION" +
+                    " FOREIGN KEY (executorId) REFERENCES users(id) ON DELETE NO ACTION," +
+                    " FOREIGN KEY (guildId) REFERENCES guilds(id) ON DELETE CASCADE" +
                     ") COLLATE utf8mb4_unicode_ci;");
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS histories(" +
                     " id INT AUTO_INCREMENT PRIMARY KEY," +
                     " userId VARCHAR(20) NOT NULL," +
                     " channelId VARCHAR(20) NOT NULL," +
-                    " channelName VARCHAR(32) NOT NULL," +
-                    " guildName VARCHAR(32) NOT NULL," +
                     " created DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL," +
-                    " FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE" +
+                    " FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE," +
+                    " FOREIGN KEY (channelId) REFERENCES channels(id) ON DELETE CASCADE" +
                     ") COLLATE utf8mb4_unicode_ci;");
             statement.close();
             conn.commit();
@@ -392,12 +605,17 @@ public class DbEngine {
         if(!initialized)
             return;
         try {
+            guildUpdate.close();
+            guildUpdate2.close();
+            channelUpdate.close();
             messageInsert.close();
             messageDelete.close();
             messageUpdate.close();
             userUpdate.close();
+            userAliasUpdate.close();
             banAdd.close();
             banLookup.close();
+            historyCreate.close();
         } catch(SQLException e) {
             LOG.log(e);
         }
@@ -449,7 +667,7 @@ public class DbEngine {
             statement.close();
             conn.commit();
             LOG.info("All tables dropped!");
-        } catch(ClassNotFoundException | SQLException | LoginException e) {
+        } catch(SQLException | LoginException e) {
             try {
                 conn.rollback();
             } catch(SQLException e1) {
@@ -471,6 +689,7 @@ public class DbEngine {
 
     public static void main(String[] args) {
         BotConfig.load();
+        drop();
         if(init()) {
             close();
         }
