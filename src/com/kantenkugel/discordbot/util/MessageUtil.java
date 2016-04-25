@@ -16,6 +16,7 @@
 
 package com.kantenkugel.discordbot.util;
 
+import com.kantenkugel.discordbot.Statics;
 import com.kantenkugel.discordbot.config.ServerConfig;
 import com.kantenkugel.discordbot.listener.MessageEvent;
 import net.dv8tion.jda.MessageBuilder;
@@ -23,27 +24,12 @@ import net.dv8tion.jda.Permission;
 import net.dv8tion.jda.entities.Message;
 import net.dv8tion.jda.entities.User;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
-
 /**
  * Created by Michael Ritter on 06.12.2015.
  */
 public class MessageUtil {
-    private static final Set<String> globalAdmins = new HashSet<>();
-    static {
-        globalAdmins.add("122758889815932930");
-        globalAdmins.add("107562988810027008");
-        globalAdmins.add("107490111414882304");
-    }
-
     public static boolean isGlobalAdmin(User user) {
-        return globalAdmins.contains(user.getId());
-    }
-
-    public static Set<String> getGlobalAdmins() {
-        return Collections.unmodifiableSet(globalAdmins);
+        return Statics.GLOBAL_ADMINS.contains(user.getId());
     }
 
     public static boolean reply(MessageEvent event, ServerConfig config, String txt) {

@@ -16,7 +16,6 @@
 
 package com.kantenkugel.discordbot.commands.sections;
 
-import com.kantenkugel.discordbot.DbEngine;
 import com.kantenkugel.discordbot.Statics;
 import com.kantenkugel.discordbot.commands.Command;
 import com.kantenkugel.discordbot.commands.CommandWrapper;
@@ -34,7 +33,6 @@ import net.dv8tion.jda.entities.User;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
-import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -107,7 +105,7 @@ public class BotAdminCommands implements CommandSection {
                 case "add":
                     if(mentioned.isEmpty()) {
                         if(args.length == 3) {
-                            if(!MessageUtil.getGlobalAdmins().contains(args[2]))
+                            if(!Statics.GLOBAL_ADMINS.contains(args[2]))
                                 BlackList.add(args[2]);
                         } else {
                             reply(e, cfg, registry.get("blacklist").getDescription());
@@ -155,26 +153,6 @@ public class BotAdminCommands implements CommandSection {
                 long ping = e.getMessage().getTime().until(msg.getTime(), ChronoUnit.MILLIS);
                 msg.updateMessage("Ping: " + ping + "ms");
             });
-        }).acceptPriv(Command.Priv.BOTADMIN));
-
-        registry.put("sql", new CommandWrapper("Executes SQL on the db", (e, cfg) -> {
-            String[] args = MessageUtil.getArgs(e, cfg, 2);
-            if(args.length == 1) {
-                reply(e, cfg, "Please provide a SQL string");
-            } else if(!args[1].substring(0, 6).toLowerCase().equals("select")) {
-                reply(e, cfg, "Only SELECT allowed, sry!");
-            } else {
-                try {
-                    String response = "Response:\n`" + DbEngine.stringify(DbEngine.query(args[1])) + "`";
-                    if(response.length() > 2000) {
-                        reply(e, cfg, "Sry, the response is to big!");
-                    } else {
-                        reply(e, cfg, response);
-                    }
-                } catch(SQLException ex) {
-                    reply(e, cfg, "There was an error running the query:\n" + ex.getMessage());
-                }
-            }
         }).acceptPriv(Command.Priv.BOTADMIN));
     }
 }

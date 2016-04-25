@@ -18,6 +18,7 @@ package com.kantenkugel.discordbot;
 
 import com.kantenkugel.discordbot.commands.CommandRegistry;
 import com.kantenkugel.discordbot.config.BotConfig;
+import com.kantenkugel.discordbot.listener.DbListener;
 import com.kantenkugel.discordbot.listener.InviteListener;
 import com.kantenkugel.discordbot.listener.MessageListener;
 import com.kantenkugel.discordbot.listener.StatusListener;
@@ -43,16 +44,20 @@ public class Main {
 
     /*
     Args:
-        0  email,
-        1  password,
+        0  email or bot-token,
+        1  password or "-" for bots,
         2  system-time of wrapper-start (for uptime),
+           OR:
+           "true" -> 2nd bot for only db (rest of params ignored)
         3  success-indicator (true/false/"-")
         4  version-number
         5+ MULTIPLE/NONE strings describing the changelog of this version
     */
     public static void main(String[] args) {
-//        Requester.LOG.setLevel(SimpleLog.Level.TRACE);
-        if(args.length < 5) {
+        boolean isDbBot = false;
+        if(args.length == 3 && Boolean.parseBoolean(args[2])) {
+            isDbBot = true;
+        } else if(args.length < 5) {
             System.out.println("Missing arguments!");
             return;
         }
@@ -70,16 +75,21 @@ public class Main {
             }
         }
 
-        Statics.START_TIME = Long.parseLong(args[2]);
-        Statics.VERSION = Integer.parseInt(args[4]);
+        if(!isDbBot) {
+            Statics.START_TIME = Long.parseLong(args[2]);
+            Statics.VERSION = Integer.parseInt(args[4]);
+        }
 
-        if(args.length > 5) {
+        if(!isDbBot && args.length > 5) {
             Statics.CHANGES = StringUtils.join(args, '\n', 5, args.length);
         } else {
             Statics.CHANGES = null;
         }
 
-        Module.init();
+        if(isDbBot)
+            DbEngine.init();
+        else
+            Module.init();
         try {
             JDABuilder jdaBuilder;
             if(args[1].equals("-")) {
@@ -87,9 +97,12 @@ public class Main {
             } else {
                 throw new RuntimeException("Normal accs are no longer supported!");
             }
-            jdaBuilder.setAudioEnabled(false)
-                    .addListener(new InviteListener()).addListener(new MessageListener()).addListener(new StatusListener());
-            if(!args[3].equals("-")) {
+            jdaBuilder.setAudioEnabled(false);
+            if(isDbBot)
+                jdaBuilder.addListener(new DbListener());
+            else
+                jdaBuilder.addListener(new InviteListener()).addListener(new MessageListener()).addListener(new StatusListener());
+            if(!isDbBot && !args[3].equals("-")) {
                 boolean success = Boolean.parseBoolean(args[3]);
                 if(success) {
                     checker = UpdateValidator.getInstance();
@@ -98,7 +111,8 @@ public class Main {
                 jdaBuilder.addListener(new UpdatePrintListener(success));
             }
             Statics.jdaInstance = jdaBuilder.buildAsync();
-            CommandRegistry.loadCommands(Statics.jdaInstance);
+            if(!isDbBot)
+                CommandRegistry.loadCommands(Statics.jdaInstance);
             new UpdateWatcher(Statics.jdaInstance);
         } catch(LoginException e) {
             Statics.LOG.fatal("Login informations were incorrect!");

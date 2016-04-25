@@ -22,6 +22,9 @@ import net.dv8tion.jda.JDAInfo;
 import net.dv8tion.jda.entities.User;
 import net.dv8tion.jda.utils.SimpleLog;
 
+import java.util.HashSet;
+import java.util.Set;
+
 public class Statics {
     public static final SimpleLog LOG = SimpleLog.getLog(BotConfig.get("logname", "KanzeBot"));
     public static long START_TIME = System.currentTimeMillis();
@@ -33,6 +36,13 @@ public class Statics {
 
     public static int VERSION;
     public static String CHANGES;
+
+    public static final Set<String> GLOBAL_ADMINS = new HashSet<>();
+    static {
+        GLOBAL_ADMINS.add("122758889815932930");
+        GLOBAL_ADMINS.add("107562988810027008");
+        GLOBAL_ADMINS.add("107490111414882304");
+    }
 
     public static final String JDAVERSION = JDAInfo.VERSION;
 
