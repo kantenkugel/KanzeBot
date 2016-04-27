@@ -106,7 +106,7 @@ public class BotConfig {
                         .put("database", "")
                         .put("user", "")
                         .put("password", "")
-                );
+                ).put("historyBase", "");       //eg http://vps.kantenkugel.com:3000/history/
     }
 
     private BotConfig() {

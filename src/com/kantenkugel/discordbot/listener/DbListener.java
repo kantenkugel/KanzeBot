@@ -18,6 +18,7 @@ package com.kantenkugel.discordbot.listener;
 
 import com.kantenkugel.discordbot.DbEngine;
 import com.kantenkugel.discordbot.Statics;
+import com.kantenkugel.discordbot.config.BotConfig;
 import com.kantenkugel.discordbot.util.MessageUtil;
 import com.kantenkugel.discordbot.util.MiscUtil;
 import net.dv8tion.jda.MessageBuilder;
@@ -64,7 +65,7 @@ public class DbListener implements EventListener {
             if(!e.isPrivate() &&  e.getContent().startsWith("-kbhistory")
                     && (MessageUtil.isGlobalAdmin(e.getAuthor()) || e.getGuild().getOwner() == e.getAuthor())) {
                 MessageUtil.reply(e, new MessageBuilder().appendString("History-link: ")
-                        .appendString("http://local.kantenkugel.com:3000/history/")
+                        .appendString(BotConfig.get("historyBase"))
                         .appendString(Long.toString(
                                 DbEngine.createHistory(
                                         e.getMessage().getMentionedUsers().size() == 0 ? e.getAuthor() : e.getMessage().getMentionedUsers().get(0)

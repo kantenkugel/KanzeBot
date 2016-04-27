@@ -232,6 +232,8 @@ public class Todo extends Module {
         TextChannel tc = api.getTextChannelById(channel);
         if(tc == null) {
             Statics.LOG.warn(cfg.getGuild().getName()+'('+cfg.getGuild().getId()+") Messed up Kanzebot!!!");
+            channel = null;
+            cfg.save();
             return;
         }
         Map<String, List<String>> messages = new HashMap<>();

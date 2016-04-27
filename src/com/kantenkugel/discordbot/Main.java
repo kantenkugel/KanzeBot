@@ -85,9 +85,16 @@ public class Main {
             Statics.CHANGES = null;
         }
 
-        if(isDbBot)
-            DbEngine.init();
-        else
+        if(isDbBot) {
+            if("".equals(BotConfig.get("historyBase"))) {
+                Statics.LOG.fatal("Please specify a history-base in the config");
+                System.exit(Statics.NORMAL_EXIT_CODE);
+            }
+            if(!DbEngine.init()) {
+                Statics.LOG.fatal("Could not connect to db! shutting down");
+                System.exit(Statics.NORMAL_EXIT_CODE);
+            }
+        } else
             Module.init();
         try {
             JDABuilder jdaBuilder = new JDABuilder().setBotToken(args[0]).setAudioEnabled(false);
