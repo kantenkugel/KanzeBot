@@ -23,6 +23,7 @@ import com.kantenkugel.discordbot.listener.InviteListener;
 import com.kantenkugel.discordbot.listener.MessageListener;
 import com.kantenkugel.discordbot.listener.StatusListener;
 import com.kantenkugel.discordbot.modules.Module;
+import com.kantenkugel.discordbot.moduleutils.DocParser;
 import com.kantenkugel.discordbot.util.UpdateValidator;
 import com.kantenkugel.discordbot.util.UpdateWatcher;
 import net.dv8tion.jda.JDABuilder;
@@ -94,8 +95,10 @@ public class Main {
                 Statics.LOG.fatal("Could not connect to db! shutting down");
                 System.exit(Statics.NORMAL_EXIT_CODE);
             }
-        } else
+        } else {
+            DocParser.init();
             Module.init();
+        }
         try {
             JDABuilder jdaBuilder = new JDABuilder().setBotToken(args[0]).setAudioEnabled(false);
             if(isDbBot)

@@ -263,7 +263,7 @@ public class Eve extends Module {
     }
 
     private static JSONArray makeGetRequest(String url) {
-        return new JDAImpl(false, false).getRequester().get(url).getArray();
+        return new JDAImpl(false, false, false).getRequester().get(url).getArray();
     }
 
     private Command setAccess(Command wrapper) {

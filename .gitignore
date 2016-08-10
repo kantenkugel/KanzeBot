@@ -7,6 +7,7 @@
 /db/
 tokens.json
 kanzeBotConfig.json
+src.jar
 
 # eclipse files
 .classpath

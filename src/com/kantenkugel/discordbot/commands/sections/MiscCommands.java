@@ -19,6 +19,7 @@ package com.kantenkugel.discordbot.commands.sections;
 import com.kantenkugel.discordbot.Statics;
 import com.kantenkugel.discordbot.commands.Command;
 import com.kantenkugel.discordbot.commands.CommandWrapper;
+import com.kantenkugel.discordbot.moduleutils.DocParser;
 import com.kantenkugel.discordbot.util.MessageUtil;
 import com.kantenkugel.discordbot.util.MiscUtil;
 import net.dv8tion.jda.JDA;
@@ -130,6 +131,15 @@ public class MiscCommands implements CommandSection {
                 e.getChannel().sendFileAsync(tmpFile, null, mess -> tmpFile.delete());
             } catch(IOException e1) {
                 reply(e, cfg, "I made a Boo Boo!");
+            }
+        }));
+
+        registry.put("docs", new CommandWrapper("Returns docs to a JDA method", (e, cfg) -> {
+            String[] args = MessageUtil.getArgs(e, cfg, 2);
+            if(args.length == 1) {
+                MessageUtil.reply(e, cfg, "Pleace specify the name of the Method in Class.Method or Class#Method annotation!");
+            } else {
+                MessageUtil.reply(e, cfg, DocParser.get(args[1]));
             }
         }));
     }
