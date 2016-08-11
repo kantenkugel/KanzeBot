@@ -20,6 +20,7 @@ import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import net.dv8tion.jda.utils.SimpleLog;
+import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -32,10 +33,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.jar.JarFile;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -52,17 +50,19 @@ public class DocParser {
     private static final String JDA_CODE_BASE = "net/dv8tion/jda";
 
     private static final Pattern DOCS_PATTERN = Pattern.compile("/\\*{2}\\s*\n(.*?)\n\\s*\\*/\\s*\n\\s*(?:@[^\n]+\n\\s*)*(.*?)\n", Pattern.DOTALL);
-    private static final Pattern METHOD_NAME_PATTERN = Pattern.compile(".*?\\s(\\S+)\\(");
+    private static final Pattern METHOD_PATTERN = Pattern.compile(".*?\\s([a-zA-Z][a-zA-Z0-9]*)\\(([a-zA-Z0-9\\s,]*)\\)");
+    private static final Pattern METHOD_ARG_PATTERN = Pattern.compile("([a-zA-Z][a-zA-Z0-9]*)\\s+[a-zA-Z][a-zA-Z0-9]");
 
-    private static final Map<String, Map<String, Documentation>> docs = new HashMap<>();
+    private static final Map<String, List<Documentation>> docs = new HashMap<>();
 
 
     public static void init() {
-        LOG.info("Initializing JDA-Docs");
         if(!docs.isEmpty())
             return;
+        LOG.info("Initializing JDA-Docs");
         download();
         parse();
+        LOG.info("JDA-Docs initialized");
     }
 
     public static String get(String name) {
@@ -71,10 +71,13 @@ public class DocParser {
             return "Incorrect Method declaration";
         if(!docs.containsKey(split[0]))
             return "Class not Found!";
-        Map<String, Documentation> methods = docs.get(split[0]);
-        if(!methods.containsKey(split[1]))
+        List<Documentation> methods = docs.get(split[0]);
+        methods = methods.parallelStream().filter(doc -> doc.matches(split[1])).sorted(Comparator.comparingInt(doc -> doc.argTypes.size())).collect(Collectors.toList());
+        if(methods.size() == 0)
             return "Method not found/documented in Class!";
-        Documentation doc = methods.get(split[1]);
+        if(methods.size() > 1 && methods.get(0).argTypes.size() != 0)
+            return "Multiple methods found: " + methods.parallelStream().map(m -> '(' + StringUtils.join(m.argTypes, ", ") + ')').collect(Collectors.joining(", "));
+        Documentation doc = methods.get(0);
         StringBuilder b = new StringBuilder();
         b.append("```\n").append(doc.functionHead).append("\n```\n").append(doc.desc);
         if(doc.args.size() > 0) {
@@ -135,8 +138,8 @@ public class DocParser {
     private static void parse(String name, InputStream inputStream) {
         String[] nameSplits = name.split("[/\\.]");
         String className = nameSplits[nameSplits.length - 2];
-        docs.putIfAbsent(className.toLowerCase(), new HashMap<>());
-        Map<String, Documentation> docs = DocParser.docs.get(className.toLowerCase());
+        docs.putIfAbsent(className.toLowerCase(), new ArrayList<>());
+        List<Documentation> docs = DocParser.docs.get(className.toLowerCase());
         try (BufferedReader buffer = new BufferedReader(new InputStreamReader(inputStream))) {
             String content = buffer.lines().collect(Collectors.joining("\n"));
             Matcher matcher = DOCS_PATTERN.matcher(content);
@@ -147,10 +150,14 @@ public class DocParser {
                 }
                 if(method.endsWith("{"))
                     method = method.substring(0, method.length() - 1).trim();
-                Matcher m2 = METHOD_NAME_PATTERN.matcher(method);
+                Matcher m2 = METHOD_PATTERN.matcher(method);
                 if(!m2.find())
                     continue;
                 String methodName = m2.group(1);
+                List<String> argTypes = new ArrayList<>();
+                m2 = METHOD_ARG_PATTERN.matcher(m2.group(2));
+                while(m2.find())
+                    argTypes.add(m2.group(1));
                 List<String> docText = cleanupDocs(matcher.group(1));
                 String returns = null;
 
@@ -172,7 +179,7 @@ public class DocParser {
                         desc = desc == null ? line : desc + '\n' + line;
                     }
                 }
-                docs.put(methodName.toLowerCase(), new Documentation(method, desc, returns, args, throwing));
+                docs.add(new Documentation(methodName, argTypes, method, desc, returns, args, throwing));
             }
         } catch(IOException ignored) {}
         try {
@@ -187,23 +194,48 @@ public class DocParser {
         docs = docs.replaceAll("(?:\\s+\\*)+\\s+", " ").replaceAll("\\s{2,}", " ");
         docs = docs.replaceAll("</?b>", "**").replaceAll("</?i>", "*").replaceAll("<br/?>", "\n").replaceAll("<[^>]+>", "");
         docs = docs.replaceAll("[^{]@", "\n@");
-        docs = docs.replaceAll("\\{@link [^}]*[ \\.](.*?)\\}", "***$1***");
+        docs = docs.replaceAll("\\{@link[^}]*[ \\.](.*?)\\}", "***$1***");
         return Arrays.stream(docs.split("\n")).map(String::trim).collect(Collectors.toList());
     }
 
     private static class Documentation {
+        private final String functionName;
+        private final List<String> argTypes;
         private final String functionHead;
         private final String desc;
         private final String returns;
         private final Map<String, String> args;
         private final Map<String, String> throwing;
 
-        public Documentation(String functionHead, String desc, String returns, Map<String, String> args, Map<String, String> throwing) {
+        private Documentation(String functionName, List<String> argTypes, String functionHead, String desc, String returns, Map<String, String> args, Map<String, String> throwing) {
+            this.functionName = functionName;
+            this.argTypes = argTypes;
             this.functionHead = functionHead;
             this.desc = desc;
             this.returns = returns;
             this.args = args;
             this.throwing = throwing;
+        }
+
+        private boolean matches(String input) {
+            if(input.charAt(input.length()-1) != ')')
+                input += "()";
+            Matcher matcher = METHOD_PATTERN.matcher(' ' + input);
+            if(!matcher.find())
+                return false;
+            if(!matcher.group(1).equalsIgnoreCase(functionName))
+                return false;
+            String args = matcher.group(2);
+            if(args.isEmpty())
+                return true;
+            String[] split = args.split(",");
+            if(split.length != argTypes.size())
+                return true;
+            for(int i = 0; i < split.length; i++) {
+                if(!split[i].trim().equalsIgnoreCase(argTypes.get(i)))
+                    return false;
+            }
+            return true;
         }
     }
 }
