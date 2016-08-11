@@ -137,9 +137,9 @@ public class MiscCommands implements CommandSection {
         registry.put("docs", new CommandWrapper("Returns docs to a JDA method", (e, cfg) -> {
             String[] args = MessageUtil.getArgs(e, cfg, 2);
             if(args.length == 1) {
-                MessageUtil.reply(e, cfg, "Pleace specify the name of the Method in Class.Method or Class#Method annotation!");
+                MessageUtil.reply(e, cfg, "Please specify the name of the Method in Class.Method or Class#Method annotation!");
             } else {
-                MessageUtil.reply(e, cfg, DocParser.get(args[1]));
+                MessageUtil.reply(e, cfg, DocParser.get(args[1]), false);
             }
         }));
     }

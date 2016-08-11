@@ -75,12 +75,19 @@ public class DocParser {
         if(!methods.containsKey(split[1]))
             return "Method not found/documented in Class!";
         Documentation doc = methods.get(split[1]);
-        return String.format("```\n%s\n```\n%s\n\nArguments:\n%s\n\nReturns:\n%s",
-                doc.functionHead,
-                doc.desc,
-                doc.args.isEmpty() ? "No Arguments!" : doc.args.entrySet().stream().map(e -> "**"+e.getKey()+"** - "+e.getValue()).collect(Collectors.joining("\n")),
-                doc.returns == null ? "No return-value!" : doc.returns
-                );
+        StringBuilder b = new StringBuilder();
+        b.append("```\n").append(doc.functionHead).append("\n```\n").append(doc.desc);
+        if(doc.args.size() > 0) {
+            b.append('\n').append('\n').append("**Arguments:**");
+            doc.args.entrySet().stream().map(e -> "**" + e.getKey() + "** - " + e.getValue()).forEach(a -> b.append('\n').append(a));
+        }
+        if(doc.returns != null)
+            b.append('\n').append('\n').append("**Returns:**\n").append(doc.returns);
+        if(doc.throwing.size() > 0) {
+            b.append('\n').append('\n').append("**Throws:**");
+            doc.throwing.entrySet().stream().map(e -> "**" + e.getKey() + "** - " + e.getValue()).forEach(a -> b.append('\n').append(a));
+        }
+        return b.toString();
     }
 
 
@@ -119,8 +126,9 @@ public class DocParser {
                             e.printStackTrace();
                         }
                     });
+            LOG.info("Done parsing source-file");
         } catch(IOException e) {
-            e.printStackTrace();
+            LOG.log(e);
         }
     }
 
@@ -145,32 +153,41 @@ public class DocParser {
                 String methodName = m2.group(1);
                 List<String> docText = cleanupDocs(matcher.group(1));
                 String returns = null;
+
                 Map<String, String> args = new HashMap<>();
-                String desc = "No Description present";
+                Map<String, String> throwing = new HashMap<>();
+                String desc = null;
                 for(String line : docText) {
-                    if(line.charAt(0) == '@') {
+                    if(!line.isEmpty() && line.charAt(0) == '@') {
                         if(line.startsWith("@return "))
                             returns = line.substring(8);
                         else if(line.startsWith("@param ")) {
                             String[] split = line.split("\\s+", 3);
-                            args.put(split[1], split[2]);
+                            args.put(split[1], split.length == 3 ? split[2] : "*No Description*");
+                        } else if(line.startsWith("@throws ")) {
+                            String[] split = line.split("\\s+", 3);
+                            throwing.put(split[1], split.length == 3 ? split[2] : "*No Description*");
                         }
                     } else {
-                        desc = line;
+                        desc = desc == null ? line : desc + '\n' + line;
                     }
                 }
-                docs.put(methodName.toLowerCase(), new Documentation(method, desc, returns, args));
+                docs.put(methodName.toLowerCase(), new Documentation(method, desc, returns, args, throwing));
             }
         } catch(IOException ignored) {}
         try {
             inputStream.close();
         } catch(IOException e) {
-            e.printStackTrace();
+            LOG.log(e);
         }
     }
 
     private static List<String> cleanupDocs(String docs) {
-        docs = docs.replace("\n", " ").replaceAll("<[^>]+>", "").replaceAll("\\s+\\*\\s+", " ").replaceAll("[^{]@", "\n@").replaceAll("\\{@link [^}]*[ \\.](.*?)\\}", "***$1***");
+        docs = docs.replace("\n", " ");
+        docs = docs.replaceAll("(?:\\s+\\*)+\\s+", " ").replaceAll("\\s{2,}", " ");
+        docs = docs.replaceAll("</?b>", "**").replaceAll("</?i>", "*").replaceAll("<br/?>", "\n").replaceAll("<[^>]+>", "");
+        docs = docs.replaceAll("[^{]@", "\n@");
+        docs = docs.replaceAll("\\{@link [^}]*[ \\.](.*?)\\}", "***$1***");
         return Arrays.stream(docs.split("\n")).map(String::trim).collect(Collectors.toList());
     }
 
@@ -179,12 +196,14 @@ public class DocParser {
         private final String desc;
         private final String returns;
         private final Map<String, String> args;
+        private final Map<String, String> throwing;
 
-        public Documentation(String functionHead, String desc, String returns, Map<String, String> args) {
+        public Documentation(String functionHead, String desc, String returns, Map<String, String> args, Map<String, String> throwing) {
             this.functionHead = functionHead;
             this.desc = desc;
             this.returns = returns;
             this.args = args;
+            this.throwing = throwing;
         }
     }
 }
