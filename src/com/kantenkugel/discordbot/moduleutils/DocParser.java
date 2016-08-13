@@ -50,8 +50,10 @@ public class DocParser {
     private static final String JDA_CODE_BASE = "net/dv8tion/jda";
 
     private static final Pattern DOCS_PATTERN = Pattern.compile("/\\*{2}\\s*\n(.*?)\n\\s*\\*/\\s*\n\\s*(?:@[^\n]+\n\\s*)*(.*?)\n", Pattern.DOTALL);
-    private static final Pattern METHOD_PATTERN = Pattern.compile(".*?\\s([a-zA-Z][a-zA-Z0-9]*)\\(([a-zA-Z0-9\\s,]*)\\)");
-    private static final Pattern METHOD_ARG_PATTERN = Pattern.compile("([a-zA-Z][a-zA-Z0-9]*)\\s+[a-zA-Z][a-zA-Z0-9]");
+    private static final Pattern METHOD_PATTERN = Pattern.compile(".*?\\s([a-zA-Z][a-zA-Z0-9]*)\\(([a-zA-Z0-9\\s\\.,<>]*)\\)");
+    private static final Pattern METHOD_ARG_PATTERN = Pattern.compile("([a-zA-Z][a-zA-Z0-9<>]*(?:\\.{3})?)\\s+[a-zA-Z][a-zA-Z0-9]");
+
+    private static final String LINK_PATTERN = "\\{@link\\s.*?\\.?([^\\s\\.]+(?:\\([^\\)]*?\\))?)\\}";
 
     private static final Map<String, List<Documentation>> docs = new HashMap<>();
 
@@ -194,7 +196,7 @@ public class DocParser {
         docs = docs.replaceAll("(?:\\s+\\*)+\\s+", " ").replaceAll("\\s{2,}", " ");
         docs = docs.replaceAll("</?b>", "**").replaceAll("</?i>", "*").replaceAll("<br/?>", "\n").replaceAll("<[^>]+>", "");
         docs = docs.replaceAll("[^{]@", "\n@");
-        docs = docs.replaceAll("\\{@link[^}]*[ \\.](.*?)\\}", "***$1***");
+        docs = docs.replaceAll(LINK_PATTERN, "***$1***");
         return Arrays.stream(docs.split("\n")).map(String::trim).collect(Collectors.toList());
     }
 
@@ -230,7 +232,7 @@ public class DocParser {
                 return true;
             String[] split = args.split(",");
             if(split.length != argTypes.size())
-                return true;
+                return false;
             for(int i = 0; i < split.length; i++) {
                 if(!split[i].trim().equalsIgnoreCase(argTypes.get(i)))
                     return false;
