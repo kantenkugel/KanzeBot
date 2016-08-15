@@ -67,13 +67,26 @@ public class DocParser {
         LOG.info("JDA-Docs initialized");
     }
 
+    public static void reFetch() {
+        LOG.info("Re-fetching Docs");
+        download();
+        synchronized(docs) {
+            docs.clear();
+            parse();
+        }
+        LOG.info("Done");
+    }
+
     public static String get(String name) {
         String[] split = name.toLowerCase().split("[#\\.]", 2);
         if(split.length != 2)
             return "Incorrect Method declaration";
-        if(!docs.containsKey(split[0]))
-            return "Class not Found!";
-        List<Documentation> methods = docs.get(split[0]);
+        List<Documentation> methods;
+        synchronized(docs) {
+            if(!docs.containsKey(split[0]))
+                return "Class not Found!";
+            methods = docs.get(split[0]);
+        }
         methods = methods.parallelStream().filter(doc -> doc.matches(split[1])).sorted(Comparator.comparingInt(doc -> doc.argTypes.size())).collect(Collectors.toList());
         if(methods.size() == 0)
             return "Method not found/documented in Class!";

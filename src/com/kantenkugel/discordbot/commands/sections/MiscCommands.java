@@ -142,5 +142,10 @@ public class MiscCommands implements CommandSection {
                 MessageUtil.reply(e, cfg, DocParser.get(args[1]), false);
             }
         }));
+
+        registry.put("newdocs", new CommandWrapper("Re-downloads / parses JDA docs", (e, cfg) -> {
+            DocParser.reFetch();
+            MessageUtil.reply(e, cfg, "Done");
+        }).acceptPriv(Command.Priv.BOTADMIN));
     }
 }
